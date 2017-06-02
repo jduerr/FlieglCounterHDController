@@ -910,7 +910,6 @@ typedef union
 - (void)cc_didUpdateEepromSelftestResultErrorCount:(uint8_t)errorCount
                                            TestData:(NSData*_Nonnull)testData;
 
-
 /**
  After requesting an eeprom transfer - This method is being called
  providing you all Events that have been found in the eeprom.
@@ -918,6 +917,7 @@ typedef union
  @param eventDictionary a collection of all valid events found in eeprom storage.
  */
 - (void)cc_didUpdateEepromTransferedEvents:(NSMutableDictionary*_Nullable)eventDictionary;
+
 
 /**
  Peripheral is sending ints current battery info
