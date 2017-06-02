@@ -9,7 +9,7 @@
 
 
 
-
+#pragma mark - Introduction
 
 /*  ************* -------- ---          The Delegate Protocol          --- -------- ************* */
 /*________________________________________________________________________________________________*/
@@ -20,8 +20,8 @@
  *
  * You must adopt and implement the required methods as follows:
  *
- * AvailablePeripherals:
- *    The CounterHDController will scan for Peripherals and call "availablePeripherals" if it finds
+ * cc_didUpdateAvailablePeripherals:
+ *    The CounterHDController will scan for Peripherals and call "cc_didUpdateAvailablePeripherals" if it finds
  *    CounterHD Beacons, giving you a NSDictionary with CBPeripherals that it found. Use
  *    NSDictionaries "allKeys", "allValues" or "objectForKey" to get the Peripherals from the
  *    dictionary. If you are interested in working with one of the Peripherals, call
@@ -51,7 +51,7 @@
  *
  * 3. Implement the methods that are required by the delegate protocoll:
  *
- *          - (void)availablePeripherals:(NSDictionary *)peripherals{
+ *          - (void)cc_didUpdateAvailablePeripherals:(NSDictionary *)peripherals{
  *               NSArray* foundPeripherals = [peripherals allValues];
  *               [beaconController connectPeripheral:[foundPeripherals firstObject]];
  *           }
@@ -72,6 +72,8 @@
 @import CoreBluetooth;
 
 #import <Foundation/Foundation.h>
+
+#pragma mark - public types, constants & definitions
 
 #define FLIEGL_BEACON_SERVICE_UUID      @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
 #define FLIEGL_BEACON_ONLY_SERVICE_UUID @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
@@ -138,9 +140,10 @@ typedef enum{
 
 typedef enum{
     EEP_EVT_AXIS_NONE = 0,
-    EEP_EVT_AXIS_X = 1,
-    EEP_EVT_AXIS_Y = 2,
-    EEP_EVT_AXIS_Z = 3,
+    EEP_EVT_AXIS_RS = 1,
+    EEP_EVT_AXIS_X = 2,
+    EEP_EVT_AXIS_Y = 3,
+    EEP_EVT_AXIS_Z = 4,
     
 }en_eep_event_Axis;
 
@@ -170,6 +173,7 @@ typedef union
     st_eep_Event eep_event;
 }un_eep_Event;
 
+#pragma mark - HDBEvent Helper Class
 
 @interface HDBEvent : NSObject
 
@@ -188,7 +192,7 @@ typedef union
 
 @end
 
-
+#pragma mark - CounterHDController Class definition
 
 @interface CounterHDController : NSObject <CBPeripheralDelegate, CBCentralManagerDelegate>
 {
@@ -202,12 +206,15 @@ typedef union
     Boolean isEEPTransferInitiated;
 }
 
+#pragma mark - Properties
+
 @property (nonatomic) id _Nonnull                   delegate;
 @property (nonatomic) BOOL                          isLoggingEnabled;
 @property (nonatomic) BOOL                          isAutoReconnecting;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundCharacteristics;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundPeripherals;
 
+#pragma mark - Initialisation / Connection handling
 
 - (instancetype _Nonnull )initWithDelegate:(_Nonnull id)delegate autoReconnecting:(BOOL)reconnecting;
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral autoReconnecting:(BOOL)reconnecting;
@@ -215,7 +222,7 @@ typedef union
 - (void)disconnectPeripheral:(CBPeripheral* _Nonnull)peripheral;
 
 
-
+#pragma mark - Device Manipulation / Configuration
 
 /*  ************* --------  Device configuration and manipulation methods  -------- ************* */
 /*________________________________________________________________________________________________*/
@@ -227,21 +234,21 @@ typedef union
 
  @param newFilterTime_s : the new filter time in seconds
  */
-- (void)updateLowPassFilterTime_X_s:(uint8_t)newFilterTime_s;
+- (void)setLowPassFilterTime_X_s:(uint8_t)newFilterTime_s;
 
 /**
  Sets a new filter time for y axis.
 
  @param newFilterTime_s : the new filter time in seconds
  */
-- (void)updateLowPassFilterTime_Y_s:(uint8_t)newFilterTime_s;
+- (void)setLowPassFilterTime_Y_s:(uint8_t)newFilterTime_s;
 
 /**
  Sets a new filter time for z axis.
 
  @param newFilterTime_s : the new filter time in seconds
  */
-- (void)updateLowPassFilterTime_Z_s:(uint8_t)newFilterTime_s;
+- (void)setLowPassFilterTime_Z_s:(uint8_t)newFilterTime_s;
 
 /**
  Sets new filter times for x, y, and z axis.
@@ -250,7 +257,7 @@ typedef union
  @param newY : the new filter time in seconds for the y axis.
  @param newZ : the new filter time in seconds for the z axis.
  */
-- (void)updateLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ;
+- (void)setLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ;
 
 // Axis calibration --------------------------------------------------------------------------------
 
@@ -345,7 +352,7 @@ typedef union
  @param xFlavor : The new flavor to set.
  @param rsDep : Whether or not the mode should be RS Activity dependent.
  */
-- (void)configure_AxisModeWith_XMode:(uint8_t)xMode
+- (void)setAxisModeWith_XMode:(uint8_t)xMode
                              XFlavor:(uint8_t)xFlavor
                          rsDependent:(uint8_t)rsDep;
 
@@ -369,7 +376,7 @@ typedef union
  @param yFlavor The new Flavor to set.
  @param rsDep Whether or not the Mode will be RS Activity dependent.
  */
-- (void)configure_AxisModeWith_YMode:(uint8_t)yMode
+- (void)setAxisModeWith_YMode:(uint8_t)yMode
                              YFlavor:(uint8_t)yFlavor
                          rsDependent:(uint8_t)rsDep;
 
@@ -393,7 +400,7 @@ typedef union
  @param zFlavor The new flavor to set.
  @param rsDep Whether or not the mode will be RS Activity dependent.
  */
-- (void)configure_AxisModeWith_ZMode:(uint8_t)zMode
+- (void)setAxisModeWith_ZMode:(uint8_t)zMode
                              ZFlavor:(uint8_t)zFlavor
                          rsDependent:(uint8_t)rsDep;
 
@@ -423,7 +430,7 @@ typedef union
  @param zFlavor The new flavor to set for the z axis.
  @param rszDep Whether or not z Axis mode will be RS Activity dependent.
  */
-- (void)configure_AxisModeWith_XMode:(uint8_t)xMode
+- (void)setAxisModeWith_XMode:(uint8_t)xMode
                              XFlavor:(uint8_t)xFlavor
                          rsxDependent:(uint8_t)rsxDep
                                YMode:(uint8_t)yMode
@@ -440,7 +447,7 @@ typedef union
  @param topBound : The inclination of the upper bound.
  @param botBound : The inclination of the bottom bound
  */
-- (void)configure_AxisBoundariesWithXTop:(int16_t)topBound
+- (void)setAxisBoundariesWithXTop:(int16_t)topBound
                                  XBottom:(int16_t)botBound;
 
 /**
@@ -449,7 +456,7 @@ typedef union
  @param topBound : The inclination of the upper bound.
  @param botBound : The inclination of the bottom bound.
  */
-- (void)configure_AxisBoundariesWithYTop:(int16_t)topBound
+- (void)setAxisBoundariesWithYTop:(int16_t)topBound
                                  YBottom:(int16_t)botBound;
 
 /**
@@ -458,7 +465,7 @@ typedef union
  @param topBound : The inclination of the upper bound.
  @param botBound : The inclination of the bottom bound.
  */
-- (void)configure_AxisBoundariesWithZTop:(int16_t)topBound
+- (void)setAxisBoundariesWithZTop:(int16_t)topBound
                                  ZBottom:(int16_t)botBound;
 
 /**
@@ -471,7 +478,7 @@ typedef union
  @param topzBound : The inclination of the upper z bound.
  @param botzBound : The inclination of the bottom z bound.
  */
-- (void)configure_AxisBoundariesWithXTop:(int16_t)topxBound
+- (void)setAxisBoundariesWithXTop:(int16_t)topxBound
                                  XBottom:(int16_t)botxBound
                                  YBottom:(int16_t)topyBound
                                  YBottom:(int16_t)botyBound
@@ -489,7 +496,7 @@ typedef union
  @param startRS : The inertia for starting criteria.
  @param endRS : The inertia for stopping criteria.
  */
-- (void)configure_axisInertiaTimeThreshRSStart:(uint16_t)startRS andRSEnd:(uint16_t)endRS;
+- (void)setAxisInertiaTimeThreshRSStart:(uint16_t)startRS andRSEnd:(uint16_t)endRS;
 
 /**
  Once an Event Trigger criteria is met, use inertia to prevent the device from immediately fire an
@@ -500,7 +507,7 @@ typedef union
  @param startX The inertia for starting criteria.
  @param endX The inertia for stopping criteria.
  */
-- (void)configure_axisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX;
+- (void)setAxisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX;
 
 /**
  Once an Event Trigger criteria is met, use inertia to prevent the device from immediately fire an
@@ -511,7 +518,7 @@ typedef union
  @param starty : The inertia for starting criteria.
  @param endy : The inertia for stopping criteria.
  */
-- (void)configure_axisInertiaTimeThreshYStart:(uint16_t)starty andYEnd:(uint16_t)endy;
+- (void)setAxisInertiaTimeThreshYStart:(uint16_t)starty andYEnd:(uint16_t)endy;
 
 /**
  Once an Event Trigger criteria is met, use inertia to prevent the device from immediately fire an
@@ -522,7 +529,7 @@ typedef union
  @param startz : The inertia for starting criteria.
  @param endz : The inertia for stopping criteria.
  */
-- (void)configure_axisInertiaTimeThreshZStart:(uint16_t)startz andZEnd:(uint16_t)endz;
+- (void)setAxisInertiaTimeThreshZStart:(uint16_t)startz andZEnd:(uint16_t)endz;
 
 /**
  Once an Event Trigger criteria is met, use inertia to prevent the device from immediately fire an
@@ -539,7 +546,7 @@ typedef union
  @param startrs : The inertia for starting criteria of RS Activity measurements.
  @param endrs : The inertia for stopping criteria of RS Activity measurements.
  */
-- (void)configure_axisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX
+- (void)setAxisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX
                                        YStart:(uint16_t)starty andYEnd:(uint16_t)endy
                                        ZStart:(uint16_t)startz andZEnd:(uint16_t)endz
                                       RSStart:(uint16_t)startrs andRSEnd:(uint16_t)endrs;
@@ -634,7 +641,7 @@ typedef union
 
 @end
 
-
+#pragma mark - The Delegate Protocol
 
 /*  ************* -------- ---          The Delegate Protocol          --- -------- ************* */
 /*________________________________________________________________________________________________*/
@@ -642,33 +649,38 @@ typedef union
 
 @protocol CounterHDDelegate
 
+#pragma mark - required
+
 /*  ************* -------- ---                 Required                --- -------- ************* */
 /*________________________________________________________________________________________________*/
+
 /**
  This gets called if CounterHDController found peripherals matching CounterHD Hardware.
 
  @param peripherals : The peripherals it found.
  */
-- (void)availablePeripherals:(NSDictionary*_Nonnull)peripherals;
+
+- (void)cc_didUpdateAvailablePeripherals:(NSDictionary*_Nonnull)peripherals;
 
 
 /*  ************* -------- ---                 Optional                --- -------- ************* */
 /*________________________________________________________________________________________________*/
 @optional
+#pragma mark - optional
 // OPTIONAL
 /**
  The CoutnerHDController did connect to a pripheral.
 
  @param peripheral : The peripheral that has been connected.
  */
-- (void) didConnectPeripheral:(CBPeripheral*_Nullable)peripheral;
+- (void) cc_didConnectPeripheral:(CBPeripheral*_Nullable)peripheral;
 
 /**
  The CounterHDController did disconnect from a peripheral.
 
  @param peripheral : The peripheral that has been disconnected.
  */
-- (void) didDisconnectPeripheral:(CBPeripheral*_Nullable)peripheral;
+- (void) cc_didDisconnectPeripheral:(CBPeripheral*_Nullable)peripheral;
 
 /**
  This method gets periodically called with updated totals for the following set of informations:
@@ -683,7 +695,7 @@ typedef union
  @param yProcessCount : The total count of tracked processes along the y axis.
  @param zProcessCount : The total count of tracked processes along the z axis.
  */
-- (void) updateTotalsForXEventCount:(uint16_t)xEventCount
+- (void) cc_didUpdateTotalsForXEventCount:(uint16_t)xEventCount
                         yEventCount:(uint16_t)yEventCount
                         zEventCount:(uint16_t)zEventCount
                         xActiveTime:(uint16_t)xActiveTime
@@ -707,7 +719,7 @@ typedef union
  @param rs_time : A value indicating how long the beacon has been tracking activity
  @param rs_count A value indicating how often the beacon has been tracking activity
  */
-- (void) updateDeviceStateWith_DeviceType:(uint16_t)deviceType
+- (void) cc_didUpdateDeviceStateWith_DeviceType:(uint16_t)deviceType
                            deviceRevision:(uint16_t)deviceRevision
                               buildNumber:(uint16_t)buildNumber
                             firmwareMajor:(uint8_t)firmwareMajor
@@ -733,7 +745,7 @@ typedef union
  @param topInertia : the inertia being used if crossing the top boundary
  @param botInertia : the inertia being used if crossing the bottom boundary
  */
-- (void) updateAxisConfigurationForAxis:(uint8_t)axis
+- (void) cc_didUpdateAxisConfigurationForAxis:(uint8_t)axis
                                    mode:(uint8_t)mode
                                  flavor:(uint8_t)flavor
                              filterTime:(uint8_t)filterTime_s
@@ -758,28 +770,28 @@ typedef union
  @param gY measured gravity affect along the y-Axis
  @param gZ measured gravity affect along the z-Axis
  */
-- (void)updateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ;
+- (void)cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param deviceType :the hardware device type
  */
-- (void)deviceState_deviceType:(uint16_t)deviceType;
+- (void)cc_didUpdateDeviceType:(uint16_t)deviceType;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param deviceRevision :the hardware device revision
  */
-- (void)deviceState_deviceRevision:(uint16_t)deviceRevision;
+- (void)cc_didUpdateDeviceRevision:(uint16_t)deviceRevision;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param firmwareBuildNr :the current firmware build number
  */
-- (void)deviceState_firmwareBuildNr:(uint16_t)firmwareBuildNr;
+- (void)cc_didUpdateFirmwareBuildNr:(uint16_t)firmwareBuildNr;
 
 /**
  Device state method with single param.
@@ -787,28 +799,28 @@ typedef union
  @param major :the major part of th firmware version. i.e. 2.xx
  @param minor :the minor part of the firmware verison. i.e. X.23
  */
-- (void)deviceState_firmwareMajor:(uint8_t)major andMinor:(uint8_t)minor;
+- (void)cc_didUpdateFirmwareMajor:(uint8_t)major andMinor:(uint8_t)minor;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param flags :a collection of flags indicating the state of the device.
  */
-- (void)deviceState_statusFlags:(uint32_t)flags;
+- (void)cc_didUpdateStatusFlags:(uint32_t)flags;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param rsTime : A value indicating how long the beacon has been tracking activity
  */
-- (void)deviceState_updateRSTime:(uint32_t)rsTime;
+- (void)cc_didUpdateRSTime:(uint32_t)rsTime;
 
 /**
  Device state method with single param.
  Provides you thefollowing param:
  @param rsCount A value indicating how often the beacon has been tracking activity
  */
-- (void)deviceState_updateRSCount:(uint32_t)rsCount;
+- (void)cc_didUpdateRSCount:(uint32_t)rsCount;
 
 
 /**
@@ -816,7 +828,7 @@ typedef union
 
  @param minor :This beacons current minor value of its iBeacon Advertisment.
  */
-- (void)basicInfo_updateMinor:(uint16_t)minor;
+- (void)cc_didUpdateMinor:(uint16_t)minor;
 
 
 /**
@@ -824,7 +836,7 @@ typedef union
 
  @param major :This beacons current major value of its iBeacon Advertisment.
  */
-- (void)basicInfo_updateMajor:(uint16_t)major;
+- (void)cc_didUpdateMajor:(uint16_t)major;
 
 
 /**
@@ -832,7 +844,7 @@ typedef union
 
  @param localName :This beacons current local name value of its active scan response Advertisment.
  */
-- (void)basicInfo_updateLocalName:(NSString*_Nullable)localName;
+- (void)cc_didUpdateLocalName:(NSString*_Nullable)localName;
 
 
 /**
@@ -840,7 +852,7 @@ typedef union
 
  @param txPower :This beacons current TX-Power value of its iBeacon Advertisment.
  */
-- (void)basicInfo_updateTXPower:(int8_t)txPower;
+- (void)cc_didUpdateTXPower:(int8_t)txPower;
 
 
 /**
@@ -851,7 +863,7 @@ typedef union
  iOS device shows you if scanning for peripherals. iOS devices since iOS 6+ do NOT
  provide you the real UUIDs in scan results but give you locally generated ones instead.
  */
-- (void)basicInfo_updateUUID:(NSString*_Nullable)uuid;
+- (void)cc_didUpdateUUID:(NSString*_Nullable)uuid;
 
 
 /**
@@ -859,7 +871,7 @@ typedef union
 
  @param isOn Whether or not the button 1 is being triggered.
  */
-- (void)actionInfo_button1_triggered:(BOOL)isOn;
+- (void)cc_didUpdateButton1_trigger:(BOOL)isOn;
 
 
 /**
@@ -867,7 +879,7 @@ typedef union
 
  @param isOn whether or not the button 2 is being triggered.
  */
-- (void)actionInfo_button2_triggered:(BOOL)isOn;
+- (void)cc_didUpdateButton2_trigger:(BOOL)isOn;
 
 
 /**
@@ -875,7 +887,7 @@ typedef union
 
  @param isOn whether or not the button 3 is being triggered.
  */
-- (void)actionInfo_button3_triggered:(BOOL)isOn;
+- (void)cc_didUpdateButton3_trigger:(BOOL)isOn;
 
 
 /**
@@ -884,7 +896,7 @@ typedef union
 
  @param percentage the current transfer state in %
  */
-- (void)eeprom_transfer_receivedPercentage:(float)percentage;
+- (void)cc_didUpdateEepromTransferPercentage:(float)percentage;
 
 
 /**
@@ -895,7 +907,7 @@ typedef union
  @param errorCount : the total error count. (0x00 if everything went fine)
  @param testData : the test result read from eep. Should have value 0x01 through 0x0A - length: 10 Bytes.
  */
-- (void)eeprom_selftestReceivedResultWithErrorCount:(uint8_t)errorCount
+- (void)cc_didUpdateEepromSelftestResultErrorCount:(uint8_t)errorCount
                                            TestData:(NSData*_Nonnull)testData;
 
 
@@ -905,8 +917,15 @@ typedef union
 
  @param eventDictionary a collection of all valid events found in eeprom storage.
  */
-- (void)eeprom_transfer_didFindEvents:(NSMutableDictionary*_Nullable)eventDictionary;
+- (void)cc_didUpdateEepromTransferedEvents:(NSMutableDictionary*_Nullable)eventDictionary;
 
+/**
+ Peripheral is sending ints current battery info
+
+ @param charge : The current battery charge as percentage
+ @param dcdcEnabled : Whether or not the peripheral is using DCDC mode.
+ */
+- (void)cc_didUpdateBatteryCharge:(uint8_t)charge dcdcEnabled:(BOOL)dcdcEnabled;
 
 @required
 //- (void)anotherRequiredMethod;

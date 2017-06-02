@@ -95,36 +95,36 @@
 }
 
 - (void)centralManagerDidUpdateState:(CBCentralManager *)central{
-    if ([manager state] == CBManagerStatePoweredOff){
+    if ([manager state] == CBCentralManagerStatePoweredOff){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStatePoweredOff");
         }
     }
             //[ProgressHUD showError:@"TCB needs Bluetooth to work properly"];
     
-    if ([manager state] == CBManagerStatePoweredOn){
+    if ([manager state] == CBCentralManagerStatePoweredOn){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStatePoweredOn");
             [self startScanning];
         }
     }
-    if ([manager state] == CBManagerStateResetting)
+    if ([manager state] == CBCentralManagerStateResetting)
     {
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateResetting");
         }
     }
-    if ([manager state] == CBManagerStateUnauthorized){
+    if ([manager state] == CBCentralManagerStateUnauthorized){
             if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnauthorized");
         }
     }
-    if ([manager state] == CBManagerStateUnknown){
+    if ([manager state] == CBCentralManagerStateUnknown){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnknown");
         }
     }
-    if ([manager state] == CBManagerStateUnsupported) {
+    if ([manager state] == CBCentralManagerStateUnsupported) {
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnsupported");
         }
@@ -140,7 +140,7 @@
         [self.foundPeripherals setObject:peripheral forKey:peripheral.identifier.UUIDString];
     }
     // update our delegate
-    [_delegate availablePeripherals:_foundPeripherals];
+    [_delegate cc_didUpdateAvailablePeripherals:_foundPeripherals];
 }
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral{
@@ -155,8 +155,8 @@
     [manager stopScan];
     
     // tell delegate
-    if ([_delegate respondsToSelector:@selector(didConnectPeripheral:)]) {
-        [_delegate didConnectPeripheral:peripheral];
+    if ([_delegate respondsToSelector:@selector(cc_didConnectPeripheral:)]) {
+        [_delegate cc_didConnectPeripheral:peripheral];
     }
 }
 
@@ -169,8 +169,8 @@
         connectionTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(timer) userInfo:nil repeats:YES];
     }
     // tell delegate
-    if ([_delegate respondsToSelector:@selector(didDisconnectPeripheral:)]) {
-        [_delegate didDisconnectPeripheral:peripheral];
+    if ([_delegate respondsToSelector:@selector(cc_didDisconnectPeripheral:)]) {
+        [_delegate cc_didDisconnectPeripheral:peripheral];
     }
 }
 
@@ -306,6 +306,16 @@
             }
         }
         
+        // Battery information
+        if ([c.UUID.UUIDString isEqualToString:@"C93ABBC0-C497-4C95-8699-01B142AF0C24"] ||
+            [c.UUID.UUIDString isEqualToString:@"C23ABBC0-C497-4C95-8699-01B142AF0C24"]) {
+            [peripheral readValueForCharacteristic:c];
+            [peripheral setNotifyValue:YES forCharacteristic:c];
+            if (self.isLoggingEnabled) {
+                NSLog(@"Found Battery Info Characteristic");
+            }
+        }
+        
         
         
         
@@ -336,9 +346,9 @@
             uint16_t  topInertia = *(uint16_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(12, 2)]]bytes];
             uint16_t  botInertia = *(uint16_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(14, 2)]]bytes];
             
-            if ([_delegate respondsToSelector:@selector(updateAxisConfigurationForAxis:mode:flavor:filterTime:isInverted:isRSDependent:topBound:botBound:topInertia:botInertia:)]) {
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateAxisConfigurationForAxis:mode:flavor:filterTime:isInverted:isRSDependent:topBound:botBound:topInertia:botInertia:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate updateAxisConfigurationForAxis:axis mode:mode flavor:flavor filterTime:filterTime isInverted:isInverted isRSDependent:isRSDependent topBound:topBound botBound:botBound topInertia:topInertia botInertia:botInertia];
+                    [_delegate cc_didUpdateAxisConfigurationForAxis:axis mode:mode flavor:flavor filterTime:filterTime isInverted:isInverted isRSDependent:isRSDependent topBound:topBound botBound:botBound topInertia:topInertia botInertia:botInertia];
                 });
             }
         }
@@ -346,9 +356,9 @@
         {
             uint8_t errorCount = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
             NSData* testResultData = [characteristic.value subdataWithRange:NSMakeRange(3, 10)];
-            if ([_delegate respondsToSelector:@selector(eeprom_selftestReceivedResultWithErrorCount:TestData:)]) {
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromSelftestResultErrorCount:TestData:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate eeprom_selftestReceivedResultWithErrorCount:errorCount TestData:testResultData];
+                    [_delegate cc_didUpdateEepromSelftestResultErrorCount:errorCount TestData:testResultData];
                 });
             }
         }
@@ -368,10 +378,10 @@
             myEeprom.messages[slot].eepTransportMsg.packetNum = slot;
             float perc = (slot/(7281.0f/100.0f));
             //NSLog(@"%@", [NSString stringWithFormat:@"Received EEP: %.2f (Slot: %d | 1%% = %.2f)", perc, slot, (float)(7281.0f/100.0f)]);
-            if ([_delegate respondsToSelector:@selector(eeprom_transfer_receivedPercentage:)]) {
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferPercentage:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     
-                    [_delegate eeprom_transfer_receivedPercentage:perc];
+                    [_delegate cc_didUpdateEepromTransferPercentage:perc];
                 });
             }
             
@@ -436,9 +446,9 @@
                     }else{
                     }
                 }//end for loop generating objects
-                if ([_delegate respondsToSelector:@selector(eeprom_transfer_didFindEvents:)]) {
+                if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferedEvents:)]) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        [_delegate eeprom_transfer_didFindEvents:eventDictionary];
+                        [_delegate cc_didUpdateEepromTransferedEvents:eventDictionary];
                     });
                 }
             }
@@ -456,29 +466,29 @@
         int8_t txPower;
         
         minor = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
-        if ([_delegate respondsToSelector:@selector(basicInfo_updateMinor:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateMinor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate basicInfo_updateMinor:minor];
+                [_delegate cc_didUpdateMinor:minor];
             });
         }
         major = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 2)]bytes];
-        if ([_delegate respondsToSelector:@selector(basicInfo_updateMajor:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateMajor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate basicInfo_updateMajor:major];
+                [_delegate cc_didUpdateMajor:major];
             });
         }
         txPower = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(15, 1)]bytes];
-        if ([_delegate respondsToSelector:@selector(basicInfo_updateTXPower:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateTXPower:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate basicInfo_updateTXPower:txPower];
+                [_delegate cc_didUpdateTXPower:txPower];
             });
         }
         
         NSData* localNameData = [characteristic.value subdataWithRange:NSMakeRange(4, 11)];
         localName = [[NSString alloc]initWithData:localNameData encoding:NSUTF8StringEncoding];
-        if ([_delegate respondsToSelector:@selector(basicInfo_updateLocalName:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateLocalName:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate basicInfo_updateLocalName:localName];
+                [_delegate cc_didUpdateLocalName:localName];
             });
         }
     }
@@ -497,9 +507,23 @@
             uuidString = @"Received illegal UUID value";
         }
         
-        if ([_delegate respondsToSelector:@selector(basicInfo_updateUUID:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateUUID:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate basicInfo_updateUUID:uuidString];
+                [_delegate cc_didUpdateUUID:uuidString];
+            });
+        }
+    }
+    
+    // battery information
+    if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC0-C497-4C95-8699-01B142AF0C24"] ||
+        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBC0-C497-4C95-8699-01B142AF0C24"]) {
+        
+        uint8_t charge = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
+        BOOL dcdcEnabled =  *(BOOL*)[[characteristic.value subdataWithRange:NSMakeRange(1, 1)]bytes];
+        
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateBatteryCharge:dcdcEnabled:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [_delegate cc_didUpdateBatteryCharge:charge dcdcEnabled:dcdcEnabled];
             });
         }
     }
@@ -512,58 +536,58 @@
         uint8_t state = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
         if (state & 1)
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button1_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton1_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button3_triggered:YES];
+                    [_delegate cc_didUpdateButton3_trigger:YES];
                 });
             }
         }else
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button1_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton1_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button3_triggered:NO];
+                    [_delegate cc_didUpdateButton3_trigger:NO];
                 });
             }
         }
         if (state & (1<<1))
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button2_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton2_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button1_triggered:YES];
+                    [_delegate cc_didUpdateButton1_trigger:YES];
                 });
             }
         }else
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button2_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton2_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button1_triggered:NO];
+                    [_delegate cc_didUpdateButton1_trigger:NO];
                 });
             }
         }
         if (state & (1<<2))
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button3_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton3_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button2_triggered:YES];
+                    [_delegate cc_didUpdateButton2_trigger:YES];
                 });
             }
         }else
         {
-            if ([_delegate respondsToSelector:@selector(actionInfo_button3_triggered:)])
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton3_trigger:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate actionInfo_button2_triggered:NO];
+                    [_delegate cc_didUpdateButton2_trigger:NO];
                 });
             }
         }
@@ -586,9 +610,9 @@
         yProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(14, 2)]bytes];
         zProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
         
-        if ([_delegate respondsToSelector:@selector(updateTotalsForXEventCount:yEventCount:zEventCount:xActiveTime:yActiveTime:yActiveTime:xProcessCount:yProcessCount:zProcessCount:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateTotalsForXEventCount:yEventCount:zEventCount:xActiveTime:yActiveTime:yActiveTime:xProcessCount:yProcessCount:zProcessCount:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate updateTotalsForXEventCount:xEventCount yEventCount:yEventCount zEventCount:zEventCount xActiveTime:xActiveTime yActiveTime:yActiveTime yActiveTime:zActiveTime xProcessCount:xProcessCount yProcessCount:yProcessCount zProcessCount:zProcessCount];
+                [_delegate cc_didUpdateTotalsForXEventCount:xEventCount yEventCount:yEventCount zEventCount:zEventCount xActiveTime:xActiveTime yActiveTime:yActiveTime yActiveTime:zActiveTime xProcessCount:xProcessCount yProcessCount:yProcessCount zProcessCount:zProcessCount];
             });
         }
     }
@@ -606,68 +630,68 @@
         // device type
         NSData* devType_data = [characteristic.value subdataWithRange:NSMakeRange(0, 2)];
         deviceType = *(uint16_t*)[devType_data bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_deviceType:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceType:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_deviceType:deviceType];
+                [_delegate cc_didUpdateDeviceType:deviceType];
             });
         }
         
         // device Revision
         NSData* devRevision_data = [characteristic.value subdataWithRange:NSMakeRange(2, 2)];
         deviceRevision = *(uint16_t*)[devRevision_data bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_deviceRevision:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceRevision:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_deviceRevision:deviceRevision];
+                [_delegate cc_didUpdateDeviceRevision:deviceRevision];
             });
         }
         
         // firmware build number
         NSData* buildNumber_data = [characteristic.value subdataWithRange:NSMakeRange(4, 2)];
         buildNumber = *(uint16_t*)[buildNumber_data bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_firmwareBuildNr:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateFirmwareBuildNr:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_firmwareBuildNr:buildNumber];
+                [_delegate cc_didUpdateFirmwareBuildNr:buildNumber];
             });
         }
         
         // firmware major and minor
         firmwareMajor = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(6, 1)]bytes];
         firmwareMinor = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(7, 1)]bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_firmwareMajor:andMinor:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateFirmwareMajor:andMinor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_firmwareMajor:firmwareMajor andMinor:firmwareMinor];
+                [_delegate cc_didUpdateFirmwareMajor:firmwareMajor andMinor:firmwareMinor];
             });
         }
         
         // Status bits
         NSData* statusBits_data = [characteristic.value subdataWithRange:NSMakeRange(8, 4)];
         statusBits = *(uint32_t*)[statusBits_data bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_statusFlags:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateStatusFlags:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_statusFlags:statusBits];
+                [_delegate cc_didUpdateStatusFlags:statusBits];
             });
         }
         
         // RS_Totals
         rs_time = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(12, 4)]bytes];
         rs_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
-        if ([_delegate respondsToSelector:@selector(deviceState_updateRSTime:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateRSTime:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_updateRSTime:rs_time];
+                [_delegate cc_didUpdateRSTime:rs_time];
             });
         }
-        if ([_delegate respondsToSelector:@selector(deviceState_updateRSCount:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateRSCount:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate deviceState_updateRSCount:rs_count];
+                [_delegate cc_didUpdateRSCount:rs_count];
             });
         }
         if (self.isLoggingEnabled) {
             
         }
         
-        if ([_delegate respondsToSelector:@selector(updateDeviceStateWith_DeviceType:deviceRevision:buildNumber:firmwareMajor:firmwareMinor:statusBits:rs_time:rs_count:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceStateWith_DeviceType:deviceRevision:buildNumber:firmwareMajor:firmwareMinor:statusBits:rs_time:rs_count:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate updateDeviceStateWith_DeviceType:deviceType deviceRevision:deviceRevision buildNumber:buildNumber firmwareMajor:firmwareMajor firmwareMinor:firmwareMinor statusBits:statusBits rs_time:rs_time rs_count:rs_count];
+                [_delegate cc_didUpdateDeviceStateWith_DeviceType:deviceType deviceRevision:deviceRevision buildNumber:buildNumber firmwareMajor:firmwareMajor firmwareMinor:firmwareMinor statusBits:statusBits rs_time:rs_time rs_count:rs_count];
             });
         }
         
@@ -715,8 +739,8 @@
         
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            if ([_delegate respondsToSelector:@selector(updateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ:)]) {
-                [_delegate updateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity];
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ:)]) {
+                [_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity];
             }
         });
     }
@@ -726,7 +750,7 @@
 
 // Device configuration and manipulation methods
 // Low Pass filter
-- (void)updateLowPassFilterTime_X_s:(uint8_t)newFilterTime_s
+- (void)setLowPassFilterTime_X_s:(uint8_t)newFilterTime_s
 {
     unsigned char senddata[20] = {0x00};
     senddata[0] = WRITE;
@@ -741,7 +765,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:filter_time_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)updateLowPassFilterTime_Y_s:(uint8_t)newFilterTime_s
+- (void)setLowPassFilterTime_Y_s:(uint8_t)newFilterTime_s
 {
     unsigned char senddata[20] = {0x00};
     senddata[0] = WRITE;
@@ -756,7 +780,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:filter_time_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)updateLowPassFilterTime_Z_s:(uint8_t)newFilterTime_s
+- (void)setLowPassFilterTime_Z_s:(uint8_t)newFilterTime_s
 {
     unsigned char senddata[20] = {0x00};
     senddata[0] = WRITE;
@@ -771,7 +795,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:filter_time_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)updateLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ
+- (void)setLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ
 {
     unsigned char senddata[20] = {0x00};
     senddata[0] = WRITE;
@@ -1020,7 +1044,7 @@
 
 }
 // Axis Mode and Flavour configuration
-- (void)configure_AxisModeWith_XMode:(uint8_t)xMode
+- (void)setAxisModeWith_XMode:(uint8_t)xMode
                              XFlavor:(uint8_t)xFlavor
                          rsDependent:(uint8_t)rsDep
 {
@@ -1044,7 +1068,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)configure_AxisModeWith_YMode:(uint8_t)yMode
+- (void)setAxisModeWith_YMode:(uint8_t)yMode
                              YFlavor:(uint8_t)yFlavor
                          rsDependent:(uint8_t)rsDep
 {
@@ -1068,7 +1092,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)configure_AxisModeWith_ZMode:(uint8_t)zMode
+- (void)setAxisModeWith_ZMode:(uint8_t)zMode
                              ZFlavor:(uint8_t)zFlavor
                          rsDependent:(uint8_t)rsDep
 {
@@ -1091,7 +1115,7 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
 }
-- (void)configure_AxisModeWith_XMode:(uint8_t)xMode
+- (void)setAxisModeWith_XMode:(uint8_t)xMode
                              XFlavor:(uint8_t)xFlavor
                          rsxDependent:(uint8_t)rsxDep
                                YMode:(uint8_t)yMode
@@ -1121,7 +1145,7 @@
     }
 }
 
-- (void)configure_AxisBoundariesWithXTop:(int16_t)topBound
+- (void)setAxisBoundariesWithXTop:(int16_t)topBound
                                  XBottom:(int16_t)botBound
 {
     
@@ -1154,7 +1178,7 @@
     }
 }
 
-- (void)configure_AxisBoundariesWithYTop:(int16_t)topBound
+- (void)setAxisBoundariesWithYTop:(int16_t)topBound
                                  YBottom:(int16_t)botBound
 {
     
@@ -1189,23 +1213,16 @@
     }
 }
 
-- (void)configure_AxisBoundariesWithZTop:(int16_t)topBound
+- (void)setAxisBoundariesWithZTop:(int16_t)topBound
                                  ZBottom:(int16_t)botBound
 {
     
     int16toByte temp = {0x00};
     
-    temp.si = topBound;
+    
     uint8_t senddata[20] = {0x00};
     senddata[0] = WRITE;
     senddata[1] = CMD_AXIS_BOUNDS;
-    senddata[10] = temp.bytes[0];
-    senddata[11] = temp.bytes[1];
-    
-    temp.si = botBound;
-    
-    senddata[12] = temp.bytes[0];
-    senddata[13] = temp.bytes[1];
     senddata[2] = 0xff;
     senddata[3] = 0xff;
     senddata[4] = 0xff;
@@ -1214,6 +1231,12 @@
     senddata[7] = 0xff;
     senddata[8] = 0xff;
     senddata[9] = 0xff;
+    temp.si = topBound;
+    senddata[10] = temp.bytes[0];
+    senddata[11] = temp.bytes[1];
+    temp.si = botBound;
+    senddata[12] = temp.bytes[0];
+    senddata[13] = temp.bytes[1];
     
     // retrieve char
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
@@ -1222,7 +1245,7 @@
     }
 }
 
-- (void)configure_AxisBoundariesWithXTop:(int16_t)topxBound
+- (void)setAxisBoundariesWithXTop:(int16_t)topxBound
                                  XBottom:(int16_t)botxBound
                                  YBottom:(int16_t)topyBound
                                  YBottom:(int16_t)botyBound
@@ -1267,7 +1290,7 @@
     }
 }
 
-- (void)configure_axisInertiaTimeThreshRSStart:(uint16_t)startRS andRSEnd:(uint16_t)endRS{
+- (void)setAxisInertiaTimeThreshRSStart:(uint16_t)startRS andRSEnd:(uint16_t)endRS{
     int16toByte temp = {0x00};
     uint8_t senddata[20] = {0x00};
     
@@ -1308,7 +1331,7 @@
     }
 }
 
-- (void)configure_axisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX{
+- (void)setAxisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX{
     int16toByte temp = {0x00};
     uint8_t senddata[20] = {0x00};
     
@@ -1349,7 +1372,7 @@
     }
 }
 
-- (void)configure_axisInertiaTimeThreshYStart:(uint16_t)starty andYEnd:(uint16_t)endy{
+- (void)setAxisInertiaTimeThreshYStart:(uint16_t)starty andYEnd:(uint16_t)endy{
     int16toByte temp = {0x00};
     uint8_t senddata[20] = {0x00};
     
@@ -1390,7 +1413,7 @@
     }
 }
 
-- (void)configure_axisInertiaTimeThreshZStart:(uint16_t)startz andZEnd:(uint16_t)endz{
+- (void)setAxisInertiaTimeThreshZStart:(uint16_t)startz andZEnd:(uint16_t)endz{
     int16toByte temp = {0x00};
     uint8_t senddata[20] = {0x00};
     
@@ -1431,7 +1454,7 @@
     }
 }
 
-- (void)configure_axisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX
+- (void)setAxisInertiaTimeThreshXStart:(uint16_t)startX andXEnd:(uint16_t)endX
                                        YStart:(uint16_t)starty andYEnd:(uint16_t)endy
                                        ZStart:(uint16_t)startz andZEnd:(uint16_t)endz
                                        RSStart:(uint16_t)startrs andRSEnd:(uint16_t)endrs
