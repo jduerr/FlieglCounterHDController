@@ -147,6 +147,14 @@ typedef enum{
     
 }en_eep_event_Axis;
 
+typedef enum{
+    en_USER_ROLE_ANONYMOUS = 0,
+    en_USER_ROLE_USER = 1,
+    en_USER_ROLE_TRUSTED_USER = 2,
+    en_USER_ROLE_OWNER = 3,
+    en_USER_ROLE_MAN_SERVICE = 4,
+    en_USER_ROLE_MANUFACTURER = 5
+}en_User_Role;
 
 typedef struct __attribute__((packed))
 {
@@ -889,6 +897,12 @@ typedef union
  */
 - (void)cc_didUpdateButton3_trigger:(BOOL)isOn;
 
+/**
+ Aciont info (Button Events)
+ 
+ @param isOn whether or not the button 4 (extern) is being triggered.
+ */
+- (void)cc_didUpdateButton4_trigger:(BOOL)isOn;
 
 /**
  After requesting an eeprom transfer - This method is being called
@@ -926,6 +940,15 @@ typedef union
  @param dcdcEnabled : Whether or not the peripheral is using DCDC mode.
  */
 - (void)cc_didUpdateBatteryCharge:(uint8_t)charge dcdcEnabled:(BOOL)dcdcEnabled;
+
+
+/**
+ Peripheral has updated value for its current selected user role.
+
+ @param userRole : The en_User_Role identification.
+ */
+- (void)cc_didUpdateUserRole:(en_User_Role)userRole;
+
 
 @required
 //- (void)anotherRequiredMethod;

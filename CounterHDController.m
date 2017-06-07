@@ -532,7 +532,7 @@
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB7-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB7-C497-4C95-8699-01B142AF0C24"])
     {
-        
+        // Button 3
         uint8_t state = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
         if (state & 1)
         {
@@ -553,6 +553,7 @@
                 });
             }
         }
+        // Button 1
         if (state & (1<<1))
         {
             if ([_delegate respondsToSelector:@selector(cc_didUpdateButton2_trigger:)])
@@ -572,6 +573,7 @@
                 });
             }
         }
+        // Button 2
         if (state & (1<<2))
         {
             if ([_delegate respondsToSelector:@selector(cc_didUpdateButton3_trigger:)])
@@ -589,6 +591,26 @@
                 {
                     [_delegate cc_didUpdateButton2_trigger:NO];
                 });
+            }
+        }
+        // Button 4 (external)
+        if (state & (1<<3))
+        {
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton4_trigger:)])
+            {
+                dispatch_async(dispatch_get_main_queue(), ^
+                               {
+                                   [_delegate cc_didUpdateButton4_trigger:YES];
+                               });
+            }
+        }else
+        {
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateButton4_trigger:)])
+            {
+                dispatch_async(dispatch_get_main_queue(), ^
+                               {
+                                   [_delegate cc_didUpdateButton4_trigger:NO];
+                               });
             }
         }
         
@@ -624,7 +646,7 @@
         uint16_t deviceType, deviceRevision, buildNumber, rs_count;
         uint8_t firmwareMajor, firmwareMinor;
         uint32_t statusBits, rs_time;
-        
+        uint8_t currentUserRole;
         
         
         // device type
@@ -663,6 +685,14 @@
             });
         }
         
+        // user role (current set)
+        currentUserRole = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(18, 1)]bytes];
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateUserRole:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [_delegate cc_didUpdateUserRole:currentUserRole];
+            });
+        }
+
         // Status bits
         NSData* statusBits_data = [characteristic.value subdataWithRange:NSMakeRange(8, 4)];
         statusBits = *(uint32_t*)[statusBits_data bytes];
