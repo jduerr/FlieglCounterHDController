@@ -15,13 +15,14 @@
 
 @implementation CounterHDController
 
-- (instancetype _Nonnull )initWithDelegate:(_Nonnull id)delegate autoReconnecting:(BOOL)reconnecting
+- (instancetype _Nonnull )initWithDelegate:(_Nonnull id)delegate autoReconnecting:(BOOL)reconnecting userRole:(en_User_Role)role pin:(uint16_t)pin
 {
     self = [super init];
     if (self) {
         [self setDelegate:delegate];
         [self setIsAutoReconnecting:reconnecting];
-        
+        _peripheralPin = pin;
+        _peripheralRole = role;
         _foundCharacteristics = [[NSMutableDictionary alloc]init];
         _foundPeripherals = [[NSMutableDictionary alloc]init];
         
@@ -687,6 +688,12 @@
         
         // user role (current set)
         currentUserRole = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(18, 1)]bytes];
+        
+        // check if the user role equals our role or set if not
+        if (currentUserRole != _peripheralRole) {
+            [self setUserRole:_peripheralRole withPin:_peripheralPin];
+        }
+        
         if ([_delegate respondsToSelector:@selector(cc_didUpdateUserRole:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [_delegate cc_didUpdateUserRole:currentUserRole];
@@ -1073,6 +1080,49 @@
     }
 
 }
+
+// User Role
+
+- (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_FSEC_SET_USER_ROLE;
+    // calibs - 0x01 == calibrate axis; 0x02 == reset calibration
+    senddata[2] = role;
+    uint16toByte tmpPin;
+    tmpPin.ui = pin;
+    senddata[3] = tmpPin.bytes[0];
+    senddata[4] = tmpPin.bytes[1];
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+    
+}
+
+- (void)setNewPin:(uint16_t)pin forUserRole:(en_User_Role)role{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_FSEC_SET_NEW_PIN;
+    // calibs - 0x01 == calibrate axis; 0x02 == reset calibration
+    senddata[2] = role;
+    uint16toByte tmpPin;
+    tmpPin.ui = pin;
+    senddata[3] = tmpPin.bytes[0];
+    senddata[4] = tmpPin.bytes[1];
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
 // Axis Mode and Flavour configuration
 - (void)setAxisModeWith_XMode:(uint8_t)xMode
                              XFlavor:(uint8_t)xFlavor

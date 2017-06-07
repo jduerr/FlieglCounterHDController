@@ -95,6 +95,8 @@
 #define CMD_EEPROM_TRANSPORT    26
 #define CMD_READ_AXIS_CONFIG    27
 #define CMD_EEPROM_SELF_TEST    28
+#define CMD_FSEC_SET_USER_ROLE  29
+#define CMD_FSEC_SET_NEW_PIN    30
 
 typedef struct __attribute__((packed))
 {
@@ -221,10 +223,12 @@ typedef union
 @property (nonatomic) BOOL                          isAutoReconnecting;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundCharacteristics;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundPeripherals;
+@property (nonatomic) uint16_t peripheralPin;
+@property (nonatomic) en_User_Role peripheralRole;
 
 #pragma mark - Initialisation / Connection handling
 
-- (instancetype _Nonnull )initWithDelegate:(_Nonnull id)delegate autoReconnecting:(BOOL)reconnecting;
+- (instancetype _Nonnull )initWithDelegate:(_Nonnull id)delegate autoReconnecting:(BOOL)reconnecting userRole:(en_User_Role)role pin:(uint16_t)pin;
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral autoReconnecting:(BOOL)reconnecting;
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral;
 - (void)disconnectPeripheral:(CBPeripheral* _Nonnull)peripheral;
@@ -266,6 +270,11 @@ typedef union
  @param newZ : the new filter time in seconds for the z axis.
  */
 - (void)setLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ;
+
+// User Roles     --------------------------------------------------------------------------------
+- (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin;
+
+- (void)setNewPin:(uint16_t)pin forUserRole:(en_User_Role)role;
 
 // Axis calibration --------------------------------------------------------------------------------
 
