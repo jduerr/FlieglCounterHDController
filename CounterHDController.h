@@ -99,6 +99,8 @@
 #define CMD_FSEC_SET_NEW_PIN    30
 #define CMD_SET_CURRENT_TIME    31
 #define CMD_READ_CURRENT_TIME   32
+#define CMD_SET_RADIO_POWER     33
+#define CMD_READ_RADIO_POWER    34
 
 
 typedef struct __attribute__((packed))
@@ -138,6 +140,16 @@ typedef enum{
     EEP_EVT_MODE_BOUNDARIES_TIME = 2,
     EEP_EVT_MODE_PROCESS_COUNT = 3
 }en_eep_event_Mode;
+
+typedef enum{
+    kRadioPowerLevel_Highest_04_db = 0,
+    kRadioPowerLevel_Default_00_db = 1,
+    kRadioPowerLevel_Low_neg_04_db = 2,
+    kRadioPowerLevel_Lower_0_neg_08_db = 3,
+    kRadioPowerLevel_Lower_1_neg_12_db = 4,
+    kRadioPowerLevel_Lower_2_neg_16_db = 5,
+    kRadioPowerLevel_Lower_3_neg_20_db = 6
+}kRadioPowerLevel;
 
 typedef enum{
     EEP_EVT_FLAVOR_DISABLED = 0,
@@ -291,6 +303,11 @@ typedef union
  Sends a "read time" request to the connected peripheral
  */
 - (void)readPeripheralCurrentTime;
+
+// Peripheral Radio configuration ------------------------------------------------------------------
+
+- (void) setPeripheralRadioPower:(kRadioPowerLevel)rPLevel;
+- (void) readPeripheralRadioPower;
 
 // User Roles     ----------------------------------------------------------------------------------
 - (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin;
@@ -986,7 +1003,16 @@ typedef union
 
  @param currentDate The current date / time as NSDate
  */
-- (void)cc_didUpdateCurrentPeripheralTime:(NSDate*)currentDate;
+- (void)cc_didUpdateCurrentPeripheralTime:(NSDate*_Nonnull)currentDate;
+
+
+/**
+ Peripheral has updated the value of its radio power.
+
+ @param radioPower - The power in db as signed 8bit integer.
+ */
+- (void)cc_didUpdateRadioPower:(int8_t)radioPower;
+
 
 @required
 //- (void)anotherRequiredMethod;

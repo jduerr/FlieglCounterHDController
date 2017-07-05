@@ -376,6 +376,16 @@
                 });
             }
         }
+        
+        if (commandNumber == CMD_READ_RADIO_POWER) {
+            int8_t radioPower = *(int8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateRadioPower:)])
+            {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [_delegate cc_didUpdateRadioPower:radioPower];
+                });
+            }
+        }
     }
     
     // EEPROM Transport characteristic
@@ -474,7 +484,7 @@
     // Beacon Basic Info
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB1-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB1-C497-4C95-8699-01B142AF0C24"]) {
-        NSLog(@"RECEIVED BEACON MINOR (Basic info)");
+        NSLog(@"RECEIVED BEACON info (Basic info)");
         uint16_t minor, major;
         NSString* localName;
         int8_t txPower;
@@ -534,6 +544,10 @@
         
         uint8_t charge = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
         BOOL dcdcEnabled =  *(BOOL*)[[characteristic.value subdataWithRange:NSMakeRange(1, 1)]bytes];
+        
+        if (self.isLoggingEnabled) {
+            NSLog(@"Received Battery Information (%d%%, DCDC: %d)", charge, dcdcEnabled);
+        }
         
         if ([_delegate respondsToSelector:@selector(cc_didUpdateBatteryCharge:dcdcEnabled:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -794,7 +808,7 @@
         
         
         if (self.isLoggingEnabled) {
-            NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data\nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n", x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
+            //NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data\nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n", x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
         }
         
         
@@ -1144,6 +1158,80 @@
     }
 }
 
+// Peripheral Radio Power
+
+- (void) setPeripheralRadioPower:(kRadioPowerLevel)rPLevel
+{
+    
+    int8_t radioPower = 0;
+    
+    unsigned char senddata[20] = {0};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_RADIO_POWER;
+    
+    
+    switch (rPLevel) {
+        case kRadioPowerLevel_Default_00_db:
+            radioPower = 0;
+            break;
+            
+            //kRadioPowerLevel_Highest_04_db = 0,
+        case kRadioPowerLevel_Highest_04_db:
+            radioPower = 4;
+            break;
+            
+            //kRadioPowerLevel_Low_neg_04_db = 2,
+        case kRadioPowerLevel_Low_neg_04_db:
+            radioPower = -4;
+            break;
+            
+            //kRadioPowerLevel_Lower_0_neg_08_db = 3,
+        case kRadioPowerLevel_Lower_0_neg_08_db:
+            radioPower = -8;
+            break;
+            
+            //kRadioPowerLevel_Lower_1_neg_12_db = 4,
+        case kRadioPowerLevel_Lower_1_neg_12_db:
+            radioPower = -12;
+            break;
+            
+            //kRadioPowerLevel_Lower_2_neg_16_db = 5,
+        case kRadioPowerLevel_Lower_2_neg_16_db:
+            radioPower = -16;
+            break;
+            
+            //kRadioPowerLevel_Lower_3_neg_20_db = 6
+        case kRadioPowerLevel_Lower_3_neg_20_db:
+            radioPower = -20;
+            break;
+            
+        default:
+            radioPower = 0;
+            break;
+    }
+    
+    senddata[2] = radioPower;
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+- (void) readPeripheralRadioPower
+{
+    unsigned char senddata[20] = {0};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_RADIO_POWER;
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+
 // User Role
 
 - (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin
@@ -1318,6 +1406,7 @@
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
     if (configuration_char != nil) {
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+        
     }
 }
 
