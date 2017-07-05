@@ -97,6 +97,9 @@
 #define CMD_EEPROM_SELF_TEST    28
 #define CMD_FSEC_SET_USER_ROLE  29
 #define CMD_FSEC_SET_NEW_PIN    30
+#define CMD_SET_CURRENT_TIME    31
+#define CMD_READ_CURRENT_TIME   32
+
 
 typedef struct __attribute__((packed))
 {
@@ -118,6 +121,11 @@ typedef union{
     uint8_t bytes[2];
     uint16_t ui;
 }uint16toByte;
+
+typedef union{
+    uint32_t ui32;
+    unsigned char bytes[4];
+}uint32ToByte;
 
 typedef union{
     unsigned char bytes[145640];
@@ -271,10 +279,24 @@ typedef union
  */
 - (void)setLowPassFilterTime_XYZ_With_X:(uint8_t)newX Y:(uint8_t)newY Z:(uint8_t)newZ;
 
-// User Roles     --------------------------------------------------------------------------------
+// Peripheral Time configuration -------------------------------------------------------------------
+
+/**
+ Sends and sets the iDevice's current time (seconds since 1970...) to the peripheral.
+ */
+- (void)setPeripheralCurrentTime;
+
+
+/**
+ Sends a "read time" request to the connected peripheral
+ */
+- (void)readPeripheralCurrentTime;
+
+// User Roles     ----------------------------------------------------------------------------------
 - (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin;
 
 - (void)setNewPin:(uint16_t)pin forUserRole:(en_User_Role)role;
+
 
 // Axis calibration --------------------------------------------------------------------------------
 
@@ -787,7 +809,7 @@ typedef union
  @param gY measured gravity affect along the y-Axis
  @param gZ measured gravity affect along the z-Axis
  */
-- (void)cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ;
+- (void)cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ frequencyFFT_z:(NSString*)frequency;
 
 /**
  Device state method with single param.
@@ -958,6 +980,13 @@ typedef union
  */
 - (void)cc_didUpdateUserRole:(en_User_Role)userRole;
 
+
+/**
+ Peripheral has updated the value for its current time
+
+ @param currentDate The current date / time as NSDate
+ */
+- (void)cc_didUpdateCurrentPeripheralTime:(NSDate*)currentDate;
 
 @required
 //- (void)anotherRequiredMethod;

@@ -40,6 +40,7 @@
     self.isAutoReconnecting = reconnecting;
     [self connectPeripheral:peripheral];
 }
+
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral
 {
     if (selected_peripheral != nil && selected_peripheral.state != CBPeripheralStateDisconnected) {
@@ -57,6 +58,8 @@
     }
     [manager cancelPeripheralConnection:peripheral];
     selected_peripheral = nil;
+    
+    
 }
 
 - (void)timer
@@ -360,6 +363,16 @@
             if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromSelftestResultErrorCount:TestData:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [_delegate cc_didUpdateEepromSelftestResultErrorCount:errorCount TestData:testResultData];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_CURRENT_TIME) {
+            uint32_t  secsSince1970 = *(uint32_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 4)]]bytes];
+            NSDate* perDate = [NSDate dateWithTimeIntervalSince1970:secsSince1970];
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateCurrentPeripheralTime:)]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [_delegate cc_didUpdateCurrentPeripheralTime:perDate];
                 });
             }
         }
@@ -751,7 +764,11 @@
         NSData* x_acceleration_data = [characteristic.value subdataWithRange:NSMakeRange(12, 1)];
         NSData* y_acceleration_data = [characteristic.value subdataWithRange:NSMakeRange(13, 1)];
         NSData* z_acceleration_data = [characteristic.value subdataWithRange:NSMakeRange(14, 1)];
-                NSData* timeStamp_data = [characteristic.value subdataWithRange:NSMakeRange(15, 4)];
+        // 15 -> byte unused
+        NSData* freq_bin1 = [characteristic.value subdataWithRange:NSMakeRange(16, 1)];
+        NSData* freq_bin2 = [characteristic.value subdataWithRange:NSMakeRange(17, 1)];
+        NSData* freq_bin3 = [characteristic.value subdataWithRange:NSMakeRange(18, 1)];
+        NSData* freq_bin4 = [characteristic.value subdataWithRange:NSMakeRange(19, 1)];
         
         
         int16_t x = *(uint16_t*)[x_data bytes];
@@ -767,20 +784,31 @@
         int8_t yGravity = *(int8_t*)[y_acceleration_data bytes];
         int8_t zGravity = *(int8_t*)[z_acceleration_data bytes];
         
-        //
-        uint32_t time = *(uint32_t*)[timeStamp_data bytes];
+        // frequency bins
+        int8_t bin1 = *(int8_t*)[freq_bin1 bytes];
+        int8_t bin2 = *(int8_t*)[freq_bin2 bytes];
+        int8_t bin3 = *(int8_t*)[freq_bin3 bytes];
+        int8_t bin4 = *(int8_t*)[freq_bin4 bytes];
+        
+        NSString* zFrequency = [NSString stringWithFormat:@"%.3f | %.3f | %.3f | %.3f Hz", [self calcFreqFromBin:bin1], [self calcFreqFromBin:bin2], [self calcFreqFromBin:bin3], [self calcFreqFromBin:bin4]];
+        
         
         if (self.isLoggingEnabled) {
-            NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data %d: \nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n",time, x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
+            NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data\nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n", x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
         }
         
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            if ([_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ:)]) {
-                [_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity];
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ: frequencyFFT_z:)]) {
+                [_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity frequencyFFT_z:zFrequency];
             }
         });
     }
+}
+
+- (float)calcFreqFromBin:(uint8_t)bin{
+    float freq = (float) bin * 100.0f / 128.0f;
+    return freq;
 }
 
 #pragma mark - Device configuration and manipulation Methods
@@ -1079,6 +1107,41 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
 
+}
+
+// Peripheral time
+
+- (void)setPeripheralCurrentTime
+{
+    // get current date
+    NSDate* date = [NSDate date];
+    uint32ToByte tmpTime = {0x00};
+    tmpTime.ui32 = (uint32_t)[date timeIntervalSince1970];
+    
+    uint8_t senddata[20] = {0x00};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_CURRENT_TIME;
+    memcpy(&senddata[2], tmpTime.bytes, 4);
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)readPeripheralCurrentTime
+{
+    
+    uint8_t senddata[20] = {0x00};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_CURRENT_TIME;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
 }
 
 // User Role
