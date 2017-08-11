@@ -894,6 +894,12 @@ typedef union
  */
 - (void)cc_didUpdateMajor:(uint16_t)major;
 
+/**
+ The Accelerometers chip-temperature (If available)
+
+ @param temperature_dC : the chips temperature in deg celsius.
+ */
+- (void)cc_didUpdateLISTemperature:(int16_t)temperature_dC;
 
 /**
  The iBeacon Standard information

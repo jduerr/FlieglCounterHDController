@@ -488,6 +488,7 @@
         uint16_t minor, major;
         NSString* localName;
         int8_t txPower;
+        int16_t lisTemperature;
         
         minor = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateMinor:)]) {
@@ -501,6 +502,18 @@
                 [_delegate cc_didUpdateMajor:major];
             });
         }
+        if (characteristic.value.length == 18) {
+            lisTemperature = *(int16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
+            NSLog(@"%@", [NSString stringWithFormat:@"LIS Temperature: %d", lisTemperature]);
+            
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateLISTemperature:)]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [_delegate cc_didUpdateLISTemperature:lisTemperature];
+                });
+            }
+        }
+        
+        
         txPower = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(15, 1)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateTXPower:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -675,6 +688,7 @@
         uint8_t firmwareMajor, firmwareMinor;
         uint32_t statusBits, rs_time;
         uint8_t currentUserRole;
+        int8_t chipTemperature;
         
         
         // device type
@@ -715,6 +729,9 @@
         
         // user role (current set)
         currentUserRole = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(18, 1)]bytes];
+        
+        // chip temperature
+        chipTemperature = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(19, 1)]bytes];
         
         // check if the user role equals our role or set if not
         if (currentUserRole != _peripheralRole) {
@@ -808,9 +825,8 @@
         
         
         if (self.isLoggingEnabled) {
-            //NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data\nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n", x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
+            NSLog(@"%@", [NSString stringWithFormat:@"Accelerometer Data\nX: %d\nY: %d\nZ: %d\nCorrected X: %d\nCorrected Y: %d\nCorrected Z: %d\nXAccel: %d\nYAccel: %d\nZAccel: %d\n\n", x,y,z,x_corrected,y_corrected,z_corrected, xGravity, yGravity, zGravity]);
         }
-        
         
         dispatch_async(dispatch_get_main_queue(), ^{
             if ([_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ: frequencyFFT_z:)]) {
