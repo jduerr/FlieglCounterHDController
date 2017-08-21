@@ -70,6 +70,7 @@
 
 
 @import CoreBluetooth;
+@import CoreLocation;
 
 #import <Foundation/Foundation.h>
 
@@ -101,6 +102,7 @@
 #define CMD_READ_CURRENT_TIME   32
 #define CMD_SET_RADIO_POWER     33
 #define CMD_READ_RADIO_POWER    34
+#define CMD_SET_VGPS_LOCATION   35
 
 
 typedef struct __attribute__((packed))
@@ -128,6 +130,11 @@ typedef union{
     uint32_t ui32;
     unsigned char bytes[4];
 }uint32ToByte;
+
+typedef union{
+    uint8_t bytes[4];
+    Float32 float_val;
+}float2Byte;
 
 typedef union{
     unsigned char bytes[145640];
@@ -189,8 +196,8 @@ typedef struct __attribute__((packed))
     uint16_t						event_count;
     uint16_t						event_pCount;
     uint16_t						event_duration;
-    double							latitude;
-    double							longitude;
+    Float32							latitude;
+    Float32							longitude;
     unsigned char 			unused[24];
     uint8_t							crc8;
 }st_eep_Event;
@@ -205,7 +212,9 @@ typedef union
 
 #pragma mark - HDBEvent Helper Class
 
-@interface HDBEvent : NSObject
+@interface HDBEvent : NSObject{
+    st_eep_Event evt_data;
+}
 
 @property (nonatomic) uint16_t eepID;
 @property (nonatomic) uint8_t mode;
@@ -219,6 +228,8 @@ typedef union
 @property (nonatomic) double latitude;
 @property (nonatomic) double longitude;
 @property (nonatomic) uint8_t crc8;
+@property (nonatomic) NSData* _Nullable proprietaryData;
+
 
 @end
 
@@ -298,11 +309,20 @@ typedef union
  */
 - (void)setPeripheralCurrentTime;
 
-
 /**
  Sends a "read time" request to the connected peripheral
  */
 - (void)readPeripheralCurrentTime;
+
+
+// Peripheral vGPS configuration ------------------------------------------------------------------
+
+/**
+ Sends and sets a location with timestamp for the peripheral wich it will
+ use to geo tag events for up to 2 hours.
+ **/
+- (void)setPeripheralVLocation:(CLLocation*_Nonnull)location;
+
 
 // Peripheral Radio configuration ------------------------------------------------------------------
 

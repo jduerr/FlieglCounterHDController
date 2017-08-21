@@ -428,28 +428,45 @@
                 for (uint16_t i = 0; i< 2570; i++)
                 {
                     NSData* eventData = [eepData subdataWithRange:NSMakeRange((i*EEP_EVENT_SIZE), EEP_EVENT_SIZE)];
+                    
                     eep_Events[i].eep_event.eepID = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(0, 2)]bytes];
+                    
                     eep_Events[i].eep_event.mode = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(2, 1)]bytes];
+                    
                     eep_Events[i].eep_event.flavor = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(3, 1)]bytes];
+                    
                     eep_Events[i].eep_event.axis = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(4, 1)]bytes];
+                    
                     eep_Events[i].eep_event.rs_state = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(5, 1)]bytes];
+                    
                     eep_Events[i].eep_event.event_date = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(6, 4)]bytes];
+                    
                     eep_Events[i].eep_event.event_count = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(10, 2)]bytes];
+                    
                     eep_Events[i].eep_event.event_pCount = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(12, 2)]bytes];
+                    
                     eep_Events[i].eep_event.event_duration = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(14, 4)]bytes];
-                    eep_Events[i].eep_event.latitude = *(double*)[[eventData subdataWithRange:NSMakeRange(18, 4)]bytes];
-                    eep_Events[i].eep_event.longitude = *(double*)[[eventData subdataWithRange:NSMakeRange(22, 4)]bytes];
+                    
+                    eep_Events[i].eep_event.latitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(18, 4)]bytes];
+                    
+                    eep_Events[i].eep_event.longitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(22, 4)]bytes];
+                    
                     for (uint8_t un = 0; un < 24; un++) {
                         eep_Events[i].eep_event.unused[un] = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange((26+un), 1)]bytes];
                     }
+                    
+                    NSData* propData = [eventData subdataWithRange:NSMakeRange(26, 24)];
+                    
                     eep_Events[i].eep_event.crc8 = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(50, 1)]bytes];
+                    
                     uint8_t checkCRC8 = 0;
-                    for (uint8_t j = 0; j<(EEP_EVENT_SIZE-1); j++) {
+                    for (uint8_t j = 0; j< (EEP_EVENT_SIZE-1); j++) {
                         checkCRC8 += eep_Events[i].bytes[j];
                     }
                     
                     if (checkCRC8 == eep_Events[i].eep_event.crc8) {
                         NSLog(@"WE HAVE A WINNER: %d", eep_Events[i].eep_event.eepID);
+                        NSLog(@"Parsed Location lat: %f lon: %f", eep_Events[i].eep_event.latitude, eep_Events[i].eep_event.longitude);
                         // Create an object
                         HDBEvent* event = [[HDBEvent alloc]init];
                         event.eepID = eep_Events[i].eep_event.eepID;
@@ -464,6 +481,7 @@
                         event.latitude = eep_Events[i].eep_event.latitude;
                         event.longitude = eep_Events[i].eep_event.longitude;
                         event.crc8 = eep_Events[i].eep_event.crc8;
+                        event.proprietaryData = propData;
                         // add object to dictionary if it does not exist...
                         [eventDictionary setObject:event forKey:[NSNumber numberWithInt:event.eepID]];
                         
@@ -1168,6 +1186,47 @@
     senddata[1] = CMD_READ_CURRENT_TIME;
     
     // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+// VGPS / Location
+
+- (void)setPeripheralVLocation:(CLLocation*_Nonnull)location
+{
+    unsigned char senddata[20] = {0};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_VGPS_LOCATION;
+    
+    float2Byte latitude;
+    float2Byte longitude;
+    uint32ToByte timestampSecs;
+    
+    latitude.float_val = (float)  location.coordinate.latitude;
+    longitude.float_val = (float) location.coordinate.longitude;
+    timestampSecs.ui32 = [location.timestamp timeIntervalSince1970];
+    
+    senddata[2] = latitude.bytes[3];
+    senddata[3] = latitude.bytes[2];
+    senddata[4] = latitude.bytes[1];
+    senddata[5] = latitude.bytes[0];
+    
+    senddata[6] = latitude.bytes[3];
+    senddata[7] = latitude.bytes[2];
+    senddata[8] = latitude.bytes[1];
+    senddata[9] = latitude.bytes[0];
+    
+    senddata[10] = latitude.bytes[3];
+    senddata[11] = latitude.bytes[2];
+    senddata[12] = latitude.bytes[1];
+    senddata[13] = latitude.bytes[0];
+    
+    memcpy(&senddata[2],  latitude.bytes, 4);
+    memcpy(&senddata[6],  longitude.bytes, 4);
+    memcpy(&senddata[10], timestampSecs.bytes, 4);
+    
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
     if (configuration_char != nil) {
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
