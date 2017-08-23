@@ -178,6 +178,12 @@
     }
 }
 
+- (void)resetManager
+{
+    [manager stopScan];
+    manager = [[CBCentralManager alloc]initWithDelegate:self queue:nil];
+    [self startScanning];
+}
 
 #pragma mark - CBPeripheral Delegates
 

@@ -169,10 +169,9 @@ typedef enum{
 
 typedef enum{
     EEP_EVT_AXIS_NONE = 0,
-    EEP_EVT_AXIS_RS = 1,
-    EEP_EVT_AXIS_X = 2,
-    EEP_EVT_AXIS_Y = 3,
-    EEP_EVT_AXIS_Z = 4,
+    EEP_EVT_AXIS_X = 1,
+    EEP_EVT_AXIS_Y = 2,
+    EEP_EVT_AXIS_Z = 3,
     
 }en_eep_event_Axis;
 
@@ -263,6 +262,7 @@ typedef union
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral autoReconnecting:(BOOL)reconnecting;
 - (void)connectPeripheral:(CBPeripheral*_Nonnull)peripheral;
 - (void)disconnectPeripheral:(CBPeripheral* _Nonnull)peripheral;
+- (void)resetManager;
 
 
 #pragma mark - Device Manipulation / Configuration
