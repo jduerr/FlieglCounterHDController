@@ -78,6 +78,7 @@
 
 #define FLIEGL_BEACON_SERVICE_UUID      @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
 #define FLIEGL_BEACON_ONLY_SERVICE_UUID @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
+#define FLIEGL_SENSOR_PLUS_SERVICE_UUID @"C83AAAA0-C497-4C95-8699-01B142AF0C24"
 
 
 #define WRITE                   0x02
@@ -172,6 +173,7 @@ typedef enum{
     EEP_EVT_AXIS_X = 1,
     EEP_EVT_AXIS_Y = 2,
     EEP_EVT_AXIS_Z = 3,
+    EEP_EVT_AXIS_INVALID = 255
     
 }en_eep_event_Axis;
 
@@ -253,6 +255,7 @@ typedef union
 @property (nonatomic) BOOL                          isAutoReconnecting;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundCharacteristics;
 @property (nonatomic) NSMutableDictionary* _Nonnull foundPeripherals;
+@property (nonatomic) NSMutableDictionary* _Nonnull foundPeripherals_sPlus;
 @property (nonatomic) uint16_t peripheralPin;
 @property (nonatomic) en_User_Role peripheralRole;
 
@@ -737,7 +740,7 @@ typedef union
  */
 
 - (void)cc_didUpdateAvailablePeripherals:(NSDictionary*_Nonnull)peripherals;
-
+- (void)cc_didUpdateAvailableSensorPlusPeripherals:(NSDictionary*_Nonnull)peripherals;
 
 /*  ************* -------- ---                 Optional                --- -------- ************* */
 /*________________________________________________________________________________________________*/
@@ -1038,6 +1041,19 @@ typedef union
  @param radioPower - The power in db as signed 8bit integer.
  */
 - (void)cc_didUpdateRadioPower:(int8_t)radioPower;
+
+- (void)cc_didUpdateSensorPlusValuesWith_reed1_count:(uint16_t)count_r1
+                                         reed2_count:(uint16_t)count_r2
+                                         reed3_count:(uint16_t)count_r3
+                                         reed4_count:(uint16_t)count_r4
+                                         reed1_time:(uint16_t)time_r1
+                                         reed2_time:(uint16_t)time_r2
+                                         reed3_time:(uint16_t)time_r3
+                                         reed4_time:(uint16_t)time_r4
+                                          reed1_mode:(uint8_t)mode_r1
+                                          reed2_mode:(uint8_t)mode_r2
+                                          reed3_mode:(uint8_t)mode_r3
+                                          reed4_mode:(uint8_t)mode_r4;
 
 
 @required

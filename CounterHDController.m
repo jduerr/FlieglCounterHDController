@@ -25,6 +25,7 @@
         _peripheralRole = role;
         _foundCharacteristics = [[NSMutableDictionary alloc]init];
         _foundPeripherals = [[NSMutableDictionary alloc]init];
+        _foundPeripherals_sPlus = [[NSMutableDictionary alloc]init];
         
         manager = [[CBCentralManager alloc]initWithDelegate:self queue:nil];
     }
@@ -87,8 +88,9 @@
     
     CBUUID* counterServiceUUID = [CBUUID UUIDWithString:FLIEGL_BEACON_SERVICE_UUID];
     CBUUID* beaconServiceUUID = [CBUUID UUIDWithString:FLIEGL_BEACON_ONLY_SERVICE_UUID];
+    CBUUID* sensorPlusServiceUUID = [CBUUID UUIDWithString:FLIEGL_SENSOR_PLUS_SERVICE_UUID];
     
-    NSArray* serviceArray = [NSArray arrayWithObjects:counterServiceUUID,nil];
+    NSArray* serviceArray = [NSArray arrayWithObjects:counterServiceUUID,sensorPlusServiceUUID,nil];
     //NSDictionary *options    = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:CBCentralManagerScanOptionAllowDuplicatesKey];
     
     [manager scanForPeripheralsWithServices:serviceArray options:nil/*options*/];
@@ -139,12 +141,38 @@
     if (_isLoggingEnabled) {
         NSLog(@"%@", [NSString stringWithFormat:@"Found a peripheral: %@", peripheral.identifier]);
     }
-    if ([self.foundPeripherals objectForKey:peripheral.identifier.UUIDString] == nil) {
-        // not available yet - add:
-        [self.foundPeripherals setObject:peripheral forKey:peripheral.identifier.UUIDString];
+    
+    // Counter or Sensor+ ?
+    NSArray* serviceUUIDsArray = [advertisementData objectForKey:@"kCBAdvDataServiceUUIDs"];
+    CBUUID* sUUID = (CBUUID*)[serviceUUIDsArray objectAtIndex:0];
+    
+    if ([sUUID.UUIDString isEqualToString:FLIEGL_BEACON_SERVICE_UUID]) {
+        // it is an CounterHD
+        if ([self.foundPeripherals objectForKey:peripheral.identifier.UUIDString] == nil) {
+            // not available yet - add:
+            [self.foundPeripherals setObject:peripheral forKey:peripheral.identifier.UUIDString];
+        }
+        // update our delegate
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateAvailablePeripherals:)]) {
+            [_delegate cc_didUpdateAvailablePeripherals:_foundPeripherals];
+        }
+        
     }
-    // update our delegate
-    [_delegate cc_didUpdateAvailablePeripherals:_foundPeripherals];
+    
+    if ([sUUID.UUIDString isEqualToString:FLIEGL_SENSOR_PLUS_SERVICE_UUID]) {
+        // it is an Sensor+
+        if ([self.foundPeripherals_sPlus objectForKey:peripheral.identifier.UUIDString] == nil) {
+            // not available yet - add:
+            [self.foundPeripherals_sPlus setObject:peripheral forKey:peripheral.identifier.UUIDString];
+        }
+        // update our delegate
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateAvailableSensorPlusPeripherals:)]) {
+            [_delegate cc_didUpdateAvailableSensorPlusPeripherals:_foundPeripherals_sPlus];
+        }
+    }
+    
+    
+    
 }
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral{
@@ -209,7 +237,7 @@
         
         // EEPRom Transport
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBC8-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBC8-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBC8-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -219,7 +247,7 @@
         
         // Param Transport (for reading back - predefined parameters)
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBC9-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBC9-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBC9-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -229,7 +257,7 @@
         
         // DFU / Special commands
         if ([c.UUID.UUIDString isEqualToString:@"C93AAAA1-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23AAAA1-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83AAAA1-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -242,7 +270,7 @@
         
         // Beacon Basic Info
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBB1-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBB1-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBB1-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -252,7 +280,7 @@
         
         // UUID
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBB3-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBB3-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBB3-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -262,7 +290,7 @@
         
         // Button states (reed contacts)
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBB7-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBB7-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBB7-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -272,7 +300,7 @@
         
         // Event Totals
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBC3-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBC3-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBC3-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -282,7 +310,7 @@
         
         // Device State C93ABBFF-C497-4C95-8699-01B142AF0C24
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBFF-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBFF-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBFF-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -293,7 +321,7 @@
         
         // Device Configuration (Command-Handler)
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBD3-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBD3-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBD3-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -308,7 +336,7 @@
         
         // lis3dh accl char
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBB8-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBB8-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBB8-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -318,7 +346,7 @@
         
         // Battery information
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBC0-C497-4C95-8699-01B142AF0C24"] ||
-            [c.UUID.UUIDString isEqualToString:@"C23ABBC0-C497-4C95-8699-01B142AF0C24"]) {
+            [c.UUID.UUIDString isEqualToString:@"C83ABBC0-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
@@ -326,6 +354,15 @@
             }
         }
         
+        // Sensor Plus counts and time
+        if ([c.UUID.UUIDString isEqualToString:@"C83ACCC1-C497-4C95-8699-01B142AF0C24"]) {
+            [peripheral readValueForCharacteristic:c];
+            [peripheral setNotifyValue:YES forCharacteristic:c];
+            if (self.isLoggingEnabled) {
+                NSLog(@"Found Sensor Plus Count/time characteristic");
+            }
+        }
+
         
         
         
@@ -337,7 +374,7 @@
     
     // Param Transport (reading back predefined parameters)
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC9-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBC9-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC9-C497-4C95-8699-01B142AF0C24"]) {
         NSLog(@"Param Update: %@", [characteristic.value description]);
         uint8_t commandNumber = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(0, 1)]]bytes];
         //uint8_t packetNumber = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(1, 1)]] bytes];
@@ -396,7 +433,7 @@
     
     // EEPROM Transport characteristic
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC8-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBC8-C497-4C95-8699-01B142AF0C24"])
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC8-C497-4C95-8699-01B142AF0C24"])
     {
         if (isEEPTransferInitiated) {
             
@@ -470,7 +507,7 @@
                         checkCRC8 += eep_Events[i].bytes[j];
                     }
                     
-                    if (checkCRC8 == eep_Events[i].eep_event.crc8) {
+                    if (checkCRC8 == eep_Events[i].eep_event.crc8 && eep_Events[i].eep_event.axis != EEP_EVT_AXIS_INVALID) {
                         NSLog(@"WE HAVE A WINNER: %d", eep_Events[i].eep_event.eepID);
                         NSLog(@"Parsed Location lat: %f lon: %f", eep_Events[i].eep_event.latitude, eep_Events[i].eep_event.longitude);
                         // Create an object
@@ -507,7 +544,7 @@
     
     // Beacon Basic Info
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB1-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB1-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB1-C497-4C95-8699-01B142AF0C24"]) {
         NSLog(@"RECEIVED BEACON info (Basic info)");
         uint16_t minor, major;
         NSString* localName;
@@ -556,7 +593,7 @@
     
     // UUID
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB3-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB3-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB3-C497-4C95-8699-01B142AF0C24"]) {
         
         NSData* uuidData = [characteristic.value subdataWithRange:NSMakeRange(0, 16)];
         NSString* uuidString;
@@ -577,7 +614,7 @@
     
     // battery information
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC0-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBC0-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC0-C497-4C95-8699-01B142AF0C24"]) {
         
         uint8_t charge = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
         BOOL dcdcEnabled =  *(BOOL*)[[characteristic.value subdataWithRange:NSMakeRange(1, 1)]bytes];
@@ -595,7 +632,7 @@
     
     // button state
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB7-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB7-C497-4C95-8699-01B142AF0C24"])
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB7-C497-4C95-8699-01B142AF0C24"])
     {
         // Button 3
         uint8_t state = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
@@ -684,7 +721,7 @@
     
     // Event Totals
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC3-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBC3-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC3-C497-4C95-8699-01B142AF0C24"]) {
         uint16_t xEventCount, yEventCount, zEventCount, xActiveTime, yActiveTime, zActiveTime, xProcessCount, yProcessCount, zProcessCount;
         
         xEventCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
@@ -706,7 +743,7 @@
     
     // Device State
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBFF-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBFF-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBFF-C497-4C95-8699-01B142AF0C24"]) {
         
         uint16_t deviceType, deviceRevision, buildNumber, rs_count;
         uint8_t firmwareMajor, firmwareMinor;
@@ -804,7 +841,7 @@
     
     // Lis3dh incl Characteristic
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB8-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C23ABBB8-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB8-C497-4C95-8699-01B142AF0C24"]) {
         // avoid updating childviews!
         //NSLog(@"Received Accl Value update");
         
@@ -857,6 +894,45 @@
                 [_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity frequencyFFT_z:zFrequency];
             }
         });
+        
+    }
+    
+    if ([characteristic.UUID.UUIDString isEqualToString:@"C83ACCC1-C497-4C95-8699-01B142AF0C24"]) {
+        uint16_t reed1_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 0, 2)] bytes];
+        uint16_t reed2_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 2, 2)] bytes];
+        uint16_t reed3_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 4, 2)] bytes];
+        uint16_t reed4_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 6, 2)] bytes];
+        
+        uint16_t reed1_time = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 8, 2)] bytes];
+        uint16_t reed2_time = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 10, 2)] bytes];
+        uint16_t reed3_time = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 12, 2)] bytes];
+        uint16_t reed4_time = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange( 14, 2)] bytes];
+        
+        uint8_t reed1_mode = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange( 16, 1)] bytes];
+        uint8_t reed2_mode = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange( 17, 1)] bytes];
+        uint8_t reed3_mode = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange( 18, 1)] bytes];
+        uint8_t reed4_mode = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange( 19, 1)] bytes];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateSensorPlusValuesWith_reed1_count:reed2_count:reed3_count:reed4_count:reed1_time:reed2_time:reed3_time:reed4_time:reed1_mode:reed2_mode:reed3_mode:reed4_mode:)]) {
+                
+                [_delegate cc_didUpdateSensorPlusValuesWith_reed1_count:reed1_count
+                                                            reed2_count:reed2_count
+                                                            reed3_count:reed3_count
+                                                            reed4_count:reed4_count
+                                                             reed1_time:reed1_time
+                                                             reed2_time:reed2_time
+                                                             reed3_time:reed3_time
+                                                             reed4_time:reed4_time
+                                                             reed1_mode:reed1_mode
+                                                             reed2_mode:reed2_mode
+                                                             reed3_mode:reed3_mode
+                                                             reed4_mode:reed4_mode];
+                NSLog(@"ButtonCounts: %d %d %d %d, Button Times: %d %d %d %d, Button Modes: %d %d %d %d", reed1_count, reed2_count, reed3_count, reed4_count, reed1_time, reed2_time, reed3_time, reed4_time, reed1_mode, reed2_mode, reed3_mode, reed4_mode);
+                NSLog(@"ButtonCounts: raw: %@", [characteristic.value description]);
+            }
+        });
+        
     }
 }
 
