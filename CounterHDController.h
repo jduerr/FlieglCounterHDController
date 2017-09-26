@@ -104,6 +104,7 @@
 #define CMD_SET_RADIO_POWER     33
 #define CMD_READ_RADIO_POWER    34
 #define CMD_SET_VGPS_LOCATION   35
+#define CMD_SET_LED_BLINK       36
 
 
 typedef struct __attribute__((packed))
@@ -717,6 +718,13 @@ typedef union
  @param axis : The axis we want to get the current configuration for.
  */
 - (void)read_currentAxisConfiguration:(uint8_t)axis;
+
+/**
+ Sets whether or not the Peripheral will show activity and states as LED blink codes.
+ 
+ @param newState : The new state of this option: (true - shows LED codes, false - LED deactivated)
+ */
+- (void)set_LED_Blink:(boolean_t)newState;
 
 @end
 

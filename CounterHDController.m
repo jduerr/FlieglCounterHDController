@@ -2103,6 +2103,26 @@
     }
 }
 
+- (void)set_LED_Blink:(boolean_t)newState{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_LED_BLINK;
+    
+    if (newState == true) {
+        senddata[0] = 0x01;
+    }else{
+        senddata[0] = 0x00;
+    }
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+    
+}
+
 
 
 
