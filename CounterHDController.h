@@ -76,36 +76,73 @@
 
 #pragma mark - public types, constants & definitions
 
-#define FLIEGL_BEACON_SERVICE_UUID      @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
-#define FLIEGL_BEACON_ONLY_SERVICE_UUID @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
-#define FLIEGL_SENSOR_PLUS_SERVICE_UUID @"C83AAAA0-C497-4C95-8699-01B142AF0C24"
+#define FLIEGL_BEACON_SERVICE_UUID          @"C93AAAA0-C497-4C95-8699-01B142AF0C24"
+#define FLIEGL_SENSOR_PLUS_SERVICE_UUID     @"C83AAAA0-C497-4C95-8699-01B142AF0C24"
+#define FLIEGL_BEACON_ONLY_SERVICE_UUID     @"C23AAAA0-C497-4C95-8699-01B142AF0C24"
 
 
-#define WRITE                   0x02
-#define READ                    0x01
+#define WRITE                               0x02
+#define READ                                0x01
 
-#define CMD_FILTER_TIME         16
-#define CMD_AXIS_MODE           17
-#define CMD_AXIS_CALIB          18
-#define CMD_AXIS_THRESH_TIME    19
-#define CMD_AXIS_BOUNDS         20
-#define CMD_BASIC_LOCALNAME     21
-#define CMD_BASIC_MAJOR         22
-#define CMD_BASIC_MINOR         23
-#define CMD_BASIC_TXPOWER       24
-#define CMD_BASIC_UUID          25
-#define CMD_EEPROM_TRANSPORT    26
-#define CMD_READ_AXIS_CONFIG    27
-#define CMD_EEPROM_SELF_TEST    28
-#define CMD_FSEC_SET_USER_ROLE  29
-#define CMD_FSEC_SET_NEW_PIN    30
-#define CMD_SET_CURRENT_TIME    31
-#define CMD_READ_CURRENT_TIME   32
-#define CMD_SET_RADIO_POWER     33
-#define CMD_READ_RADIO_POWER    34
-#define CMD_SET_VGPS_LOCATION   35
-#define CMD_SET_LED_BLINK       36
+#define CMD_FILTER_TIME                     16
+#define CMD_AXIS_MODE                       17
+#define CMD_AXIS_CALIB                      18
+#define CMD_AXIS_THRESH_TIME                19
+#define CMD_AXIS_BOUNDS                     20
+#define CMD_BASIC_LOCALNAME                 21
+#define CMD_BASIC_MAJOR                     22
+#define CMD_BASIC_MINOR                     23
+#define CMD_BASIC_TXPOWER                   24
+#define CMD_BASIC_UUID                      25
+#define CMD_EEPROM_TRANSPORT                26
+#define CMD_READ_AXIS_CONFIG                27
+#define CMD_EEPROM_SELF_TEST                28
+#define CMD_FSEC_SET_USER_ROLE              29
+#define CMD_FSEC_SET_NEW_PIN                30
+#define CMD_SET_CURRENT_TIME                31
+#define CMD_READ_CURRENT_TIME               32
+#define CMD_SET_RADIO_POWER                 33
+#define CMD_READ_RADIO_POWER                34
+#define CMD_SET_VGPS_LOCATION               35
+#define CMD_SET_LED_BLINK                   36
+#define CMD_READ_SENSIBILITY_TO_rsSTART     44
+#define CMD_READ_ABSOLUTE_EVENT_ID          45
+#define CMD_READ_DAY_COUNT_YES_OR_NO        47
+#define CMD_SET_TIME_DISPLAY_MODE           64
+#define CMD_READ_TIME_DISPLAY_MODE          65
+#define CMD_READ_FLIEGL_COUNTER_PERIPH_TYPE 66
+#define CMD_RESET_FACTORY_DEFAULT_WO_CALIB  67
 
+#define CMD_READ_PITCH_METERING_ACTIVE      49
+#define CMD_READ_MINUTES_TO_SLEEP           51
+#define CMD_READ_HOURS_TO_SLEEP             52
+
+#define CMD_READ_APPLICATION_PURPOSE        53
+
+#define CMD_READ_MIN_AXIS_ROTATION_LOAD     58
+#define CMD_READ_AVG_AXIS_ROTATION_LOAD     61
+#define CMD_READ_MODE4_BORDER_INCL          63
+#define CMD_RESET_SLEEP_COUNTER             37
+#define CMD_TOGGLE_SLEEP_COUNTER_ON_OFF     38
+#define CMD_SET_SLEEP_TIMEOUT_MINUTES       39
+#define CMD_SET_SLEEP_TIMEOUT_HOURS         40
+#define CMD_SET_LIS_WAKEUP_VALUE            41
+#define CMD_SET_LIS_MOVEMENT_BORDER_VALUE   43
+#define CMD_SET_AUTO_DAILY_COUNTER_ON_OFF   46
+#define CMD_SET_RESET_MANUAL_DAILY_COUNT    48
+#define CMD_SET_PITCH_METERING_ON_OFF       50
+#define CMD_SET_SET_APPLICATION_PURPOSE     54
+#define CMD_SET_MIN_AXIS_ROTATION_LOAD      57
+#define CMD_TOGGLE_AUTOCALIB_ROTATION_METER 59
+#define CMD_SET_AVG_AXIS_ROTATION_LOAD      60
+#define CMD_SET_MODE4_BORDER_INCL           62
+
+
+
+uint8_t currentPacketNumber;
+
+unsigned int biggest_id;
+unsigned int packetIDMax;
 
 typedef struct __attribute__((packed))
 {
@@ -139,8 +176,8 @@ typedef union{
 }float2Byte;
 
 typedef union{
-    unsigned char bytes[145640];
-    un_st_eep_transport_Msg messages[7282];
+    unsigned char bytes[582520];
+    un_st_eep_transport_Msg messages[29126];
 }un_eeprom;
 
 typedef enum{
@@ -170,7 +207,7 @@ typedef enum{
 }en_eep_event_FLAVOR;
 
 typedef enum{
-    EEP_EVT_AXIS_NONE = 0,
+    EEP_EVT_AXIS_RS =0,
     EEP_EVT_AXIS_X = 1,
     EEP_EVT_AXIS_Y = 2,
     EEP_EVT_AXIS_Z = 3,
@@ -189,18 +226,18 @@ typedef enum{
 
 typedef struct __attribute__((packed))
 {
-    uint16_t 						eepID;
+    uint32_t 						eepID;
     en_eep_event_Mode               mode;
     en_eep_event_FLAVOR             flavor;
     en_eep_event_Axis               axis;
     uint8_t							rs_state;
     time_t							event_date;
-    uint16_t						event_count;
-    uint16_t						event_pCount;
-    uint16_t						event_duration;
+    uint32_t						event_count;
+    uint32_t						event_pCount;
+    time_t						    event_duration;
     Float32							latitude;
     Float32							longitude;
-    unsigned char 			unused[24];
+    unsigned char 			        unused[18];
     uint8_t							crc8;
 }st_eep_Event;
 
@@ -218,14 +255,14 @@ typedef union
     st_eep_Event evt_data;
 }
 
-@property (nonatomic) uint16_t eepID;
+@property (nonatomic) uint32_t eepID;
 @property (nonatomic) uint8_t mode;
 @property (nonatomic) uint8_t flavor;
 @property (nonatomic) uint8_t axis;
 @property (nonatomic) uint8_t rsState;
 @property (nonatomic) time_t eventDate;
-@property (nonatomic) uint16_t eventCount;
-@property (nonatomic) uint16_t eventProcessCount;
+@property (nonatomic) uint32_t eventCount;
+@property (nonatomic) uint32_t eventProcessCount;
 @property (nonatomic) time_t eventDuration;
 @property (nonatomic) double latitude;
 @property (nonatomic) double longitude;
@@ -243,8 +280,11 @@ typedef union
     CBPeripheral*       selected_peripheral;
     NSTimer*            connectionTimer;
     
-    un_eeprom myEeprom;
-    un_eep_Event eep_Events[2570];
+    //unsigned char eprom8bytes[524280];
+    
+    NSMutableData* eepReceivedDataStream;
+    //un_eeprom myEeprom;
+    //un_eep_Event eep_Events[10280];
     NSMutableDictionary* eventDictionary;
     Boolean isEEPTransferInitiated;
 }
@@ -268,13 +308,15 @@ typedef union
 - (void)disconnectPeripheral:(CBPeripheral* _Nonnull)peripheral;
 - (void)resetManager;
 
-
 #pragma mark - Device Manipulation / Configuration
 
 /*  ************* --------  Device configuration and manipulation methods  -------- ************* */
 /*________________________________________________________________________________________________*/
 
 // Low Pass filter ---------------------------------------------------------------------------------
+
+
+-(void)readEEPMemoryInfo;
 
 /**
  Sets a new filter time for x axis.
@@ -409,6 +451,7 @@ typedef union
  */
 - (void)invert_XYZ_Axis:(BOOL)inv;
 
+- (void)set_resetFactoryDefaultsWithoutCalibration:(uint16_t)securityCode;
 
 // Axis Mode and Flavour configuration -------------------------------------------------------------
 
@@ -630,6 +673,10 @@ typedef union
                                        YStart:(uint16_t)starty andYEnd:(uint16_t)endy
                                        ZStart:(uint16_t)startz andZEnd:(uint16_t)endz
                                       RSStart:(uint16_t)startrs andRSEnd:(uint16_t)endrs;
+
+- (void)setTimeDisplayMode:(uint8_t)newMode;
+
+
 // Set new beacon basic info -----------------------------------------------------------------------
 
 /**
@@ -703,7 +750,7 @@ typedef union
 /**
  Commands the connected peripheral to transfer the complete eeprom storage.
  */
-- (void)eeprom_startTransfer;
+- (void)eeprom_startTransferBeginningWithEEP_ID:(uint32_t)req_start_id;
 
 
 /**
@@ -725,6 +772,29 @@ typedef union
  @param newState : The new state of this option: (true - shows LED codes, false - LED deactivated)
  */
 - (void)set_LED_Blink:(boolean_t)newState;
+
+- (void)read_pitchMeteringState;
+- (void)read_minutesToSleep;
+- (void)read_hoursToSleep;
+- (void)read_applicationPurpose;
+- (void)read_minAxisRotationLoat;
+- (void)read_averageAxisRotationLoad;
+- (void)read_mode4BorderInclination;
+- (void)reset_sleepCounter;
+- (void)set_sleepCounterOnOrOff:(boolean_t)counterOn;
+- (void)set_sleepCounter_Hours:(uint16_t)hours;
+- (void)set_sleepCounter_Minutes:(uint16_t)minutes;
+- (void)set_LIS_WakeUp_value: (uint8_t)value;
+- (void)set_LIS_Movement_value: (uint8_t)value;
+- (void)set_automaticDailyCountOnOrOff:(boolean_t)onOrOff;
+- (void)reset_manual_dailyCounters;
+- (void)set_pitchMetering_OnOrOff:(boolean_t)onOrOff;
+- (void)set_applicationPurpose:(uint8_t)appPurpose;
+- (void)set_minAxisRotationLoad:(uint8_t)minLoad;
+- (void)start_autoCalibrationOfRotationMetering;
+- (void)set_averageAxisRotationLoad:(uint8_t)avgLoad;
+- (void)set_mode4BorderInclination:(uint8_t)inclination_border;
+
 
 @end
 
@@ -769,6 +839,8 @@ typedef union
  */
 - (void) cc_didDisconnectPeripheral:(CBPeripheral*_Nullable)peripheral;
 
+- (void) cc_didUpdateEEPMemoryInfo:(uint32_t) maxPossible anCurrentMax:(uint32_t) currentMaxEvtID;
+
 /**
  This method gets periodically called with updated totals for the following set of informations:
 
@@ -782,13 +854,10 @@ typedef union
  @param yProcessCount : The total count of tracked processes along the y axis.
  @param zProcessCount : The total count of tracked processes along the z axis.
  */
-- (void) cc_didUpdateTotalsForXEventCount:(uint16_t)xEventCount
-                        yEventCount:(uint16_t)yEventCount
+- (void) cc_didUpdateTotalsForEventCount:(uint16_t)yEventCount
                         zEventCount:(uint16_t)zEventCount
-                        xActiveTime:(uint16_t)xActiveTime
-                        yActiveTime:(uint16_t)yActiveTime
-                        yActiveTime:(uint16_t)zActiveTime
-                      xProcessCount:(uint16_t)xProcessCount
+                        yActiveTime:(uint32_t)yActiveTime
+                        zActiveTime:(uint32_t)zActiveTime
                       yProcessCount:(uint16_t)yProcessCount
                       zProcessCount:(uint16_t)zProcessCount;
 
@@ -857,7 +926,7 @@ typedef union
  @param gY measured gravity affect along the y-Axis
  @param gZ measured gravity affect along the z-Axis
  */
-- (void)cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ frequencyFFT_z:(NSString*)frequency;
+- (void)cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)gX gravityY:(int8_t)gY gravityZ:(int8_t)gZ frequencyFFT_z:(NSString*_Nullable)frequency;
 
 /**
  Device state method with single param.
@@ -865,6 +934,12 @@ typedef union
  @param deviceType :the hardware device type
  */
 - (void)cc_didUpdateDeviceType:(uint16_t)deviceType;
+
+- (void)cc_didUpdate_RS_TotalApplication_s:(uint32_t)application_seconds andFillingStreetSecs:(uint32_t)street_seconds;
+
+- (void)cc_didUpdate_absoluteLastEventID:(uint32_t)evtId
+                       dailyProcessCount:(uint16_t)pCount_day dailyRSApplication_s:(uint32_t)RSapplic_s dailyRSStreet_s:(uint32_t)RSstreet_s
+                            dailyRSCount:(uint32_t)dayCountRSTime;
 
 /**
  Device state method with single param.
@@ -909,6 +984,7 @@ typedef union
  */
 - (void)cc_didUpdateRSCount:(uint32_t)rsCount;
 
+- (void)cc_didUpdateModeDependendState(uint8_t)state;
 
 /**
  The iBeacon Standard informations.
@@ -1034,6 +1110,11 @@ typedef union
  */
 - (void)cc_didUpdateUserRole:(en_User_Role)userRole;
 
+/** Written banks
+*/
+
+-(void)cc_didReadCurrentPacketNumber:(uint8_t)currentPacketNumber;
+
 
 /**
  Peripheral has updated the value for its current time
@@ -1062,6 +1143,31 @@ typedef union
                                           reed2_mode:(uint8_t)mode_r2
                                           reed3_mode:(uint8_t)mode_r3
                                           reed4_mode:(uint8_t)mode_r4;
+
+/**
+ Peripheral has sent update on its current time display mode
+
+ @param currentDisplayMode : the current time display mode
+ Modi: 0: Gesamtzeit RS, 1: Tageszähler manuell RS, 2: Tageszähler automatisch RS, 3: Gesamtzeit Ausbringzeit, 4: Tagesz. manuell Ausbringzeit, 5. Tagesz.  automatisch Ausbringzeit, 6: Befüllungszeit Gesamt, 7: Befüllungszeit Tageszähler manuell, 8: Befüllunszeit Tageszähler automatisch. 
+ */
+- (void)cc_didUpdate_modeTimeDisplay:(uint8_t)currentDisplayMode;
+
+
+/**
+ Peripheral has sent update on its Fliegl peripheral type
+ 
+ @param counterHardwareType : the peripheral type
+ Modi: 1: CounterHD, 2: Display Counter 3: Sigfox Counter 
+ */
+- (void)cc_didUpdate_FlieglCounterDeviceType:(uint8_t)counterHardwareType;
+
+- (void) cc_didUpdate_PitchMeteringState:(boolean_t)state;
+- (void) cc_didUpdate_MinutesToSleep:(uint16_t)minutes;
+- (void) cc_didUpdate_HoursToSleep:(uint16_t)hours;
+- (void) cc_didUpdate_ApplicationPurpose:(uint8_t)purpose;
+- (void) cc_didUpdate_MinAxisRotationLoad:(uint8_t)minAxisLoad;
+- (void) cc_didUpdate_AverageAxisRotationLoad:(uint8_t)percentage;
+- (void) cc_didUpdate_Mode4BorderInclination:(uint8_t)axis andBorderInclination:(uint8_t)border;
 
 
 @required

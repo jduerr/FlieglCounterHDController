@@ -10,6 +10,14 @@
 
 @implementation HDBEvent
 
+- (NSString *)description{
+    NSMutableString* returnValue = [[NSMutableString alloc]init];
+    
+    [returnValue appendString:[NSString stringWithFormat:@"HDBEvent: eepid: %d unix-time:%ld with CRC8: %d ", _eepID,_eventDate, _crc8]];
+    
+    return returnValue;
+}
+
 @end
 
 
@@ -31,6 +39,7 @@
     }
     
     eventDictionary = [[NSMutableDictionary alloc]init];
+    eepReceivedDataStream = [[NSMutableData alloc]init];
     
     return self;
 }
@@ -90,7 +99,7 @@
     CBUUID* beaconServiceUUID = [CBUUID UUIDWithString:FLIEGL_BEACON_ONLY_SERVICE_UUID];
     CBUUID* sensorPlusServiceUUID = [CBUUID UUIDWithString:FLIEGL_SENSOR_PLUS_SERVICE_UUID];
     
-    NSArray* serviceArray = [NSArray arrayWithObjects:counterServiceUUID,sensorPlusServiceUUID,nil];
+    NSArray* serviceArray = [NSArray arrayWithObjects:counterServiceUUID,sensorPlusServiceUUID, beaconServiceUUID,nil];
     //NSDictionary *options    = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:CBCentralManagerScanOptionAllowDuplicatesKey];
     
     [manager scanForPeripheralsWithServices:serviceArray options:nil/*options*/];
@@ -101,36 +110,36 @@
 }
 
 - (void)centralManagerDidUpdateState:(CBCentralManager *)central{
-    if ([manager state] == CBCentralManagerStatePoweredOff){
+    if ([manager state] == CBManagerStatePoweredOff){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStatePoweredOff");
         }
     }
             //[ProgressHUD showError:@"TCB needs Bluetooth to work properly"];
     
-    if ([manager state] == CBCentralManagerStatePoweredOn){
+    if ([manager state] == CBManagerStatePoweredOn){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStatePoweredOn");
             [self startScanning];
         }
     }
-    if ([manager state] == CBCentralManagerStateResetting)
+    if ([manager state] == CBManagerStateResetting)
     {
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateResetting");
         }
     }
-    if ([manager state] == CBCentralManagerStateUnauthorized){
+    if ([manager state] == CBManagerStateUnauthorized){
             if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnauthorized");
         }
     }
-    if ([manager state] == CBCentralManagerStateUnknown){
+    if ([manager state] == CBManagerStateUnknown){
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnknown");
         }
     }
-    if ([manager state] == CBCentralManagerStateUnsupported) {
+    if ([manager state] == CBManagerStateUnsupported) {
         if (_isLoggingEnabled) {
             NSLog(@"CBCentralManagerStateUnsupported");
         }
@@ -238,7 +247,7 @@
         // EEPRom Transport
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBC8-C497-4C95-8699-01B142AF0C24"] ||
             [c.UUID.UUIDString isEqualToString:@"C83ABBC8-C497-4C95-8699-01B142AF0C24"]) {
-            [peripheral readValueForCharacteristic:c];
+            //[peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
             if (self.isLoggingEnabled) {
                 NSLog(@"Found EEPROM TRANSPORT Characteristic");
@@ -287,6 +296,38 @@
                 NSLog(@"Found Beacon UUID Characteristic");
             }
         }
+        
+        
+        /*
+        // Written banks
+        if ([c.UUID.UUIDString isEqualToString:@"C93ABBCA-C497-4C95-8699-01B142AF0C24"] ||
+            [c.UUID.UUIDString isEqualToString:@"C83ABBCA-C497-4C95-8699-01B142AF0C24"]) {
+            
+            [peripheral readValueForCharacteristic:c];
+            [peripheral setNotifyValue:YES forCharacteristic:c];
+            if (self.isLoggingEnabled) {
+                NSLog(@"Found Written Banks Characteristic");
+            }
+        }
+         */
+         
+        /*
+        // Threshold
+        if ([c.UUID.UUIDString isEqualToString:@"C93ABBCA-C497-4C95-8699-01B142AF0C24"] ||
+            [c.UUID.UUIDString isEqualToString:@"C83ABBCA-C497-4C95-8699-01B142AF0C24"]) {
+            
+            
+            uint8_t starty = *(uint8_t*)[[NSData dataWithData:[c.value subdataWithRange:NSMakeRange(10, 1)]]bytes];
+            uint8_t endy = *(uint8_t*)[[NSData dataWithData:[c.value subdataWithRange:NSMakeRange(6, 4)]]bytes];
+            if ([_delegate respondsToSelector:@selector(setAxisInertiaTimeThreshXStart:andXEnd:)]) {
+               dispatch_async(dispatch_get_main_queue(), ^{
+                    [_delegate setAxisInertiaTimeThreshYStart:starty andYEnd:starty];
+               });
+            }
+        }
+         */
+         
+        
         
         // Button states (reed contacts)
         if ([c.UUID.UUIDString isEqualToString:@"C93ABBB7-C497-4C95-8699-01B142AF0C24"] ||
@@ -353,8 +394,8 @@
                 NSLog(@"Found Battery Info Characteristic");
             }
         }
-        
-        // Sensor Plus counts and time
+		
+		// Sensor Plus counts and time
         if ([c.UUID.UUIDString isEqualToString:@"C83ACCC1-C497-4C95-8699-01B142AF0C24"]) {
             [peripheral readValueForCharacteristic:c];
             [peripheral setNotifyValue:YES forCharacteristic:c];
@@ -362,7 +403,16 @@
                 NSLog(@"Found Sensor Plus Count/time characteristic");
             }
         }
-
+		
+        // last event id and more
+        if ([c.UUID.UUIDString isEqualToString:@"C93ABBCA-C497-4C95-8699-01B142AF0C24"] ||
+            [c.UUID.UUIDString isEqualToString:@"C83ABBCA-C497-4C95-8699-01B142AF0C24"]) {
+            [peripheral readValueForCharacteristic:c];
+            [peripheral setNotifyValue:YES forCharacteristic:c];
+            if (self.isLoggingEnabled) {
+                NSLog(@"Found Last Event ID and more Characteristic");
+            }
+        }
         
         
         
@@ -370,14 +420,30 @@
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(nonnull CBCharacteristic *)characteristic error:(nullable NSError *)error{
+    // init of static vars
+    static bool isEEPTransferContentDescriptionReceived = false;
     
     
+    
+    NSLog(@"JD did update characteristic %@ Data: %@", characteristic.UUID.UUIDString, characteristic.value);
     // Param Transport (reading back predefined parameters)
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC9-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC9-C497-4C95-8699-01B142AF0C24"]) {
-        NSLog(@"Param Update: %@", [characteristic.value description]);
         uint8_t commandNumber = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(0, 1)]]bytes];
+        NSLog(@"Param Update: %@ for Command Nr. %d (0x%x)hex", [characteristic.value description], commandNumber, commandNumber);
+        
         //uint8_t packetNumber = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(1, 1)]] bytes];
+        
+        if (commandNumber == CMD_READ_ABSOLUTE_EVENT_ID)
+        {
+            uint32_t lastEvtID = *(uint32_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 4)]]bytes];
+            uint32_t MAXpossibleEvtID = *(uint32_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(6, 4)]]bytes];
+            if ([_delegate respondsToSelector:@selector(cc_didUpdateEEPMemoryInfo:anCurrentMax:)]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdateEEPMemoryInfo:MAXpossibleEvtID anCurrentMax:lastEvtID];
+                });
+            }
+        }
         
         if (commandNumber == CMD_READ_AXIS_CONFIG)
         {
@@ -395,7 +461,7 @@
             
             if ([_delegate respondsToSelector:@selector(cc_didUpdateAxisConfigurationForAxis:mode:flavor:filterTime:isInverted:isRSDependent:topBound:botBound:topInertia:botInertia:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate cc_didUpdateAxisConfigurationForAxis:axis mode:mode flavor:flavor filterTime:filterTime isInverted:isInverted isRSDependent:isRSDependent topBound:topBound botBound:botBound topInertia:topInertia botInertia:botInertia];
+                    [self->_delegate cc_didUpdateAxisConfigurationForAxis:axis mode:mode flavor:flavor filterTime:filterTime isInverted:isInverted isRSDependent:isRSDependent topBound:topBound botBound:botBound topInertia:topInertia botInertia:botInertia];
                 });
             }
         }
@@ -405,7 +471,7 @@
             NSData* testResultData = [characteristic.value subdataWithRange:NSMakeRange(3, 10)];
             if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromSelftestResultErrorCount:TestData:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate cc_didUpdateEepromSelftestResultErrorCount:errorCount TestData:testResultData];
+                    [self->_delegate cc_didUpdateEepromSelftestResultErrorCount:errorCount TestData:testResultData];
                 });
             }
         }
@@ -415,7 +481,7 @@
             NSDate* perDate = [NSDate dateWithTimeIntervalSince1970:secsSince1970];
             if ([_delegate respondsToSelector:@selector(cc_didUpdateCurrentPeripheralTime:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate cc_didUpdateCurrentPeripheralTime:perDate];
+                    [self->_delegate cc_didUpdateCurrentPeripheralTime:perDate];
                 });
             }
         }
@@ -425,126 +491,266 @@
             if ([_delegate respondsToSelector:@selector(cc_didUpdateRadioPower:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate cc_didUpdateRadioPower:radioPower];
+                    [self->_delegate cc_didUpdateRadioPower:radioPower];
                 });
             }
         }
+        if (commandNumber == CMD_READ_TIME_DISPLAY_MODE)
+        {
+            uint8_t mode = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_modeTimeDisplay:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_modeTimeDisplay:mode];
+                });
+            }
+        }
+        if (commandNumber == CMD_READ_FLIEGL_COUNTER_PERIPH_TYPE)
+        {
+            uint8_t type = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_FlieglCounterDeviceType:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_FlieglCounterDeviceType:type];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_MODE4_BORDER_INCL)
+        {
+            uint8_t axis = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            uint8_t incl = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(3, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_Mode4BorderInclination:andBorderInclination:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_Mode4BorderInclination:incl andBorderInclination:axis];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_AVG_AXIS_ROTATION_LOAD)
+        {
+            uint8_t percentage = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_AverageAxisRotationLoad:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_AverageAxisRotationLoad:percentage];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_MIN_AXIS_ROTATION_LOAD)
+        {
+            uint8_t minLoad = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_MinAxisRotationLoad:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_MinAxisRotationLoad:minLoad];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_APPLICATION_PURPOSE)
+        {
+            uint8_t mode = *(uint8_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_ApplicationPurpose:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_ApplicationPurpose:mode];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_MINUTES_TO_SLEEP)
+        {
+            uint16_t minutesToSleep = *(uint16_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 2)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_MinutesToSleep:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_MinutesToSleep:minutesToSleep];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_HOURS_TO_SLEEP)
+        {
+            uint16_t hoursToSleep = *(uint16_t*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 2)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_HoursToSleep:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_HoursToSleep:hoursToSleep];
+                });
+            }
+        }
+        
+        if (commandNumber == CMD_READ_PITCH_METERING_ACTIVE)
+        {
+            bool isActivated = *(bool*)[[NSData dataWithData:[characteristic.value subdataWithRange:NSMakeRange(2, 1)]]bytes];
+            if ([_delegate respondsToSelector: @selector(cc_didUpdate_PitchMeteringState:) ]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self->_delegate cc_didUpdate_PitchMeteringState:isActivated];
+                });
+            }
+        }
+        
+        
     }
     
     // EEPROM Transport characteristic
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC8-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC8-C497-4C95-8699-01B142AF0C24"])
     {
-        if (isEEPTransferInitiated) {
-            
-            uint16_t slot = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
-            NSData* data = [characteristic.value subdataWithRange:NSMakeRange(2, 18)];
-            NSLog(@"Transfer %d: %@",slot, [data description]);
-            
-            memcpy(myEeprom.messages[slot].eepTransportMsg.payload, [data bytes], 18);
-            myEeprom.messages[slot].eepTransportMsg.packetNum = slot;
-            float perc = (slot/(7281.0f/100.0f));
-            //NSLog(@"%@", [NSString stringWithFormat:@"Received EEP: %.2f (Slot: %d | 1%% = %.2f)", perc, slot, (float)(7281.0f/100.0f)]);
-            if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferPercentage:)]) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    
-                    [_delegate cc_didUpdateEepromTransferPercentage:perc];
-                });
-            }
-            
-            if (slot == 7281) {
-                // We received the last slot. --> parse the memory now and handle the rest
-                isEEPTransferInitiated = false;
-                NSMutableData* eepData = [[NSMutableData alloc]init];
-                // collect the whole data
-                for (uint16_t i = 0; i<7282; i++) {
-                    
-                    if (i == 3640 || i == 7281) {
-                        [eepData appendData:[NSData dataWithBytes:myEeprom.messages[i].eepTransportMsg.payload length:15]];
-                    }else{
-                        [eepData appendData:[NSData dataWithBytes:myEeprom.messages[i].eepTransportMsg.payload length:18]];
-                    }
+        static uint16_t messageCounter = 0;
+        static uint16_t messageCountAnnouncement = 0;
+        
+        //NSLog(@"EEP Transfer JD: %@", [characteristic.value description]);
+        if (isEEPTransferInitiated)
+        {
+            if(isEEPTransferContentDescriptionReceived == false)
+            {
+                
+                // handle the first message...
+                messageCountAnnouncement = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 2)]bytes];
+                // reset flag...
+                NSLog(@"Markus - erste Nachricht gefunden ... Announced: %d", messageCountAnnouncement);
+                isEEPTransferContentDescriptionReceived = true;
+                if (eepReceivedDataStream != nil && eepReceivedDataStream.length > 0)
+                {
+                    [eepReceivedDataStream setData:[NSData dataWithBytes:NULL length:0]];
+                }
+            }else
+            {
+                // handle all the other messages
+                // increment received message counter
+                messageCounter++;
+                NSLog(@"%@", [NSString stringWithFormat:@"Markus - Transfernachricht nummer: %d", messageCounter]);
+                uint16_t slot = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
+                NSData* data = [characteristic.value subdataWithRange:NSMakeRange(2, 18)];
+                NSLog(@"Transfer %d: %@",slot, [data description]);
+                
+                /* alt - wech damit-------------------------------
+                memcpy(myEeprom.messages[slot].eepTransportMsg.payload, [data bytes], 18);
+                myEeprom.messages[slot].eepTransportMsg.packetNum = slot;
+                
+                */
+                
+                // 100 % == messageCountAnnouncement
+                // slot  == current message Number
+                // perc  == slot / (messageCountAnnouncement / 100)
+                
+                float currentCount = 1.0f * messageCounter;
+                float AnnouncedCount = 1.0f*messageCountAnnouncement;
+                float perc = 1.0f * (currentCount / (AnnouncedCount / 100));
+                // debug percentage
+                NSLog(@"DEBUG_PERC %d announced, %d messagenum, %.2f perc", messageCountAnnouncement, messageCounter, perc);
+                
+                //NSLog(@"%@", [NSString stringWithFormat:@"Received EEP: %.2f (Slot: %d | 1%% = %.2f)", perc, slot, (float)(7281.0f/100.0f)]);
+                NSLog(@"Markus Transfer Progress: %.2f using slot: %d from message count %d", perc, slot, messageCountAnnouncement);
+                if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferPercentage:)])
+                {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self->_delegate cc_didUpdateEepromTransferPercentage:perc];
+                    });
                 }
                 
+                // append received data
+                [eepReceivedDataStream appendData:data];
                 
-                // we now have the pure eeprom bytes.
-                for (uint16_t i = 0; i< 2570; i++)
+                bool isTransferStillGoingOn = false;
+                Byte* checkdata = (Byte*) data.bytes;
+                for (int i = 0; i<18; i++)
                 {
-                    NSData* eventData = [eepData subdataWithRange:NSMakeRange((i*EEP_EVENT_SIZE), EEP_EVENT_SIZE)];
-                    
-                    eep_Events[i].eep_event.eepID = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(0, 2)]bytes];
-                    
-                    eep_Events[i].eep_event.mode = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(2, 1)]bytes];
-                    
-                    eep_Events[i].eep_event.flavor = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(3, 1)]bytes];
-                    
-                    eep_Events[i].eep_event.axis = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(4, 1)]bytes];
-                    
-                    eep_Events[i].eep_event.rs_state = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(5, 1)]bytes];
-                    
-                    eep_Events[i].eep_event.event_date = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(6, 4)]bytes];
-                    
-                    eep_Events[i].eep_event.event_count = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(10, 2)]bytes];
-                    
-                    eep_Events[i].eep_event.event_pCount = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(12, 2)]bytes];
-                    
-                    eep_Events[i].eep_event.event_duration = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(14, 4)]bytes];
-                    
-                    eep_Events[i].eep_event.latitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(18, 4)]bytes];
-                    
-                    eep_Events[i].eep_event.longitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(22, 4)]bytes];
-                    
-                    for (uint8_t un = 0; un < 24; un++) {
-                        eep_Events[i].eep_event.unused[un] = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange((26+un), 1)]bytes];
+                    if (checkdata[i] != 0x21)
+                    {
+                        isTransferStillGoingOn = true;
                     }
+                }
+                if (isTransferStillGoingOn == false)
+                {
+                    // ---> MESSAGE COUNTER VAR is being RESET
+                    messageCounter =0;
+                    NSLog(@"Markus --> Transfer seems to have ended - resetting the algorithm AND starting parsing the content... ");
+                    // transfer ended ... handle heere ...
+                    // We received the last slot. --> parse the memory now and handle the rest
+                    isEEPTransferInitiated = false;
+                    isEEPTransferContentDescriptionReceived = false;
                     
-                    NSData* propData = [eventData subdataWithRange:NSMakeRange(26, 24)];
+                    int payLoadSize = (int) eepReceivedDataStream.length;
+                    Byte* eepPayload = (Byte*)eepReceivedDataStream.bytes;
                     
-                    eep_Events[i].eep_event.crc8 = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(50, 1)]bytes];
-                    
-                    uint8_t checkCRC8 = 0;
-                    for (uint8_t j = 0; j< (EEP_EVENT_SIZE-1); j++) {
-                        checkCRC8 += eep_Events[i].bytes[j];
+                    if (payLoadSize>50) {
+                        for (int sc = 0; sc< (payLoadSize - 51); sc++)
+                        {
+                            
+                            uint8_t crc_calculated = 0;
+                            for (int i = 0; i<50; i++) {
+                                crc_calculated += eepPayload[i];
+                            }
+                            if(eepPayload[50] == crc_calculated && crc_calculated != 0)
+                            {
+                                // Eintrag gefunden oder Nullnummer *!
+                                NSLog(@"Markus Algorithmus - Wir haben einen eintrag gefunden");
+                                unsigned char eventArray[51] = {0x00};
+                                memcpy(eventArray, eepPayload, 51);
+                                
+                                uint32_t testTimeValue = 0;
+                                memcpy(&testTimeValue, &eventArray[8], 4);
+                                
+                                if (testTimeValue > 1477390775) {
+                                    NSLog(@"EfentDate: %d", testTimeValue);
+                                    HDBEvent* event = [[HDBEvent alloc]init];
+                                    //uint16_t ui16 = 0;
+                                    uint32_t ui32 = 0;
+                                    memcpy(&ui32, &eventArray[0], 4);
+                                    event.eepID = ui32;
+                                    event.mode = eventArray[4];
+                                    event.flavor = eventArray[5];
+                                    event.axis = eventArray[6];
+                                    event.rsState = eventArray[7];
+                                    event.eventDate = testTimeValue;
+                                    memcpy(&ui32, &eventArray[12], 4);
+                                    event.eventCount = ui32;
+                                    memcpy(&ui32, &eventArray[16], 4);
+                                    event.eventProcessCount = ui32;
+                                    memcpy(&ui32, &eventArray[20], 4);
+                                    event.eventDuration = ui32;
+                                    Float32 f32 = 0.0;
+                                    memcpy(&f32, &eventArray[24], 4);
+                                    event.latitude = f32;
+                                    memcpy(&f32, &eventArray[28], 4);
+                                    event.longitude = f32;
+                                    event.proprietaryData = [NSData dataWithBytes:&eventArray[32] length:18];
+                                    event.crc8 = eventArray[50];
+                                    // add object to dictionary if it does not exist...
+                                    if (eventDictionary == nil) {
+                                        eventDictionary = [[NSMutableDictionary alloc]init];
+                                    }
+                                    [eventDictionary setObject:event forKey:[NSNumber numberWithInt:event.eepID]];
+                                }
+                            }
+                            eepPayload++;
+                        }
+                        //NSLog(eventDictionary.description);
+                        NSArray *sortedKeys = [[eventDictionary allKeys] sortedArrayUsingSelector: @selector(compare:)];
+                        NSMutableArray *sortedValues = [NSMutableArray array];
+                        for (NSString *key in sortedKeys)
+                        {
+                            [sortedValues addObject: [eventDictionary objectForKey: key]];
+                        }
+                        NSLog(@"%@", sortedKeys.description);
+                        if (_delegate != nil) {
+                            if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferedEvents:)]) {
+                                dispatch_async(dispatch_get_main_queue(), ^{
+                                    [self->_delegate cc_didUpdateEepromTransferedEvents:self->eventDictionary];
+                                });
+                            }
+                        }
                     }
-                    
-                    if (checkCRC8 == eep_Events[i].eep_event.crc8 && eep_Events[i].eep_event.axis != EEP_EVT_AXIS_INVALID) {
-                        NSLog(@"WE HAVE A WINNER: %d", eep_Events[i].eep_event.eepID);
-                        NSLog(@"Parsed Location lat: %f lon: %f", eep_Events[i].eep_event.latitude, eep_Events[i].eep_event.longitude);
-                        // Create an object
-                        HDBEvent* event = [[HDBEvent alloc]init];
-                        event.eepID = eep_Events[i].eep_event.eepID;
-                        event.mode = eep_Events[i].eep_event.mode;
-                        event.flavor = eep_Events[i].eep_event.flavor;
-                        event.axis = eep_Events[i].eep_event.axis;
-                        event.rsState = eep_Events[i].eep_event.rs_state;
-                        event.eventDate = eep_Events[i].eep_event.event_date;
-                        event.eventCount = eep_Events[i].eep_event.event_count;
-                        event.eventProcessCount = eep_Events[i].eep_event.event_pCount;
-                        event.eventDuration = eep_Events[i].eep_event.event_duration;
-                        event.latitude = eep_Events[i].eep_event.latitude;
-                        event.longitude = eep_Events[i].eep_event.longitude;
-                        event.crc8 = eep_Events[i].eep_event.crc8;
-                        event.proprietaryData = propData;
-                        // add object to dictionary if it does not exist...
-                        [eventDictionary setObject:event forKey:[NSNumber numberWithInt:event.eepID]];
-                        
-                    }else{
-                    }
-                }//end for loop generating objects
-                if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferedEvents:)]) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [_delegate cc_didUpdateEepromTransferedEvents:eventDictionary];
-                    });
                 }
             }
         }
     }
     
+
+    
     
     
     // Beacon Basic Info
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB1-C497-4C95-8699-01B142AF0C24"] ||
-        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB1-C497-4C95-8699-01B142AF0C24"]) {
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB1-C497-4C95-8699-01B142AF0C24"])
+    {
         NSLog(@"RECEIVED BEACON info (Basic info)");
         uint16_t minor, major;
         NSString* localName;
@@ -554,13 +760,13 @@
         minor = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateMinor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateMinor:minor];
+                [self->_delegate cc_didUpdateMinor:minor];
             });
         }
         major = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 2)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateMajor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateMajor:major];
+                [self->_delegate cc_didUpdateMajor:major];
             });
         }
         if (characteristic.value.length == 18) {
@@ -569,7 +775,7 @@
             
             if ([_delegate respondsToSelector:@selector(cc_didUpdateLISTemperature:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_delegate cc_didUpdateLISTemperature:lisTemperature];
+                    [self->_delegate cc_didUpdateLISTemperature:lisTemperature];
                 });
             }
         }
@@ -578,7 +784,7 @@
         txPower = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(15, 1)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateTXPower:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateTXPower:txPower];
+                [self->_delegate cc_didUpdateTXPower:txPower];
             });
         }
         
@@ -586,7 +792,7 @@
         localName = [[NSString alloc]initWithData:localNameData encoding:NSUTF8StringEncoding];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateLocalName:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateLocalName:localName];
+                [self->_delegate cc_didUpdateLocalName:localName];
             });
         }
     }
@@ -607,28 +813,53 @@
         
         if ([_delegate respondsToSelector:@selector(cc_didUpdateUUID:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateUUID:uuidString];
+                [self->_delegate cc_didUpdateUUID:uuidString];
             });
         }
     }
     
     // battery information
+    
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC0-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC0-C497-4C95-8699-01B142AF0C24"]) {
         
         uint8_t charge = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
         BOOL dcdcEnabled =  *(BOOL*)[[characteristic.value subdataWithRange:NSMakeRange(1, 1)]bytes];
-        
+        uint32_t rs_application_total_s = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 4)]bytes];
+        uint32_t rs_yield_total_s = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(6, 4)]bytes];
         if (self.isLoggingEnabled) {
             NSLog(@"Received Battery Information (%d%%, DCDC: %d)", charge, dcdcEnabled);
         }
-        
+        if ([_delegate respondsToSelector:@selector(cc_didUpdate_RS_TotalApplication_s:andFillingStreetSecs:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self->_delegate cc_didUpdate_RS_TotalApplication_s:rs_application_total_s andFillingStreetSecs:rs_yield_total_s];
+            });
+        }
         if ([_delegate respondsToSelector:@selector(cc_didUpdateBatteryCharge:dcdcEnabled:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateBatteryCharge:charge dcdcEnabled:dcdcEnabled];
+                [self->_delegate cc_didUpdateBatteryCharge:charge dcdcEnabled:dcdcEnabled];
             });
         }
     }
+    
+    // Last Event-ID and more
+    
+    if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBCA-C497-4C95-8699-01B142AF0C24"] ||
+        [characteristic.UUID.UUIDString isEqualToString:@"C83ABBCA-C497-4C95-8699-01B142AF0C24"]) {
+        
+        uint32_t absoluteLastEventID = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 4)]bytes] -1;
+        uint16_t dailyProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(4, 2)]bytes];
+        uint32_t dayCountRSTime = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(6, 4)]bytes];
+        uint32_t dailyRSTimeApplication_s = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(12, 4)]bytes];
+        uint32_t dailyRSTimeStreetFill_s = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 4)]bytes];
+        
+        if ([_delegate respondsToSelector:@selector(cc_didUpdate_absoluteLastEventID:dailyProcessCount:dailyRSApplication_s:dailyRSStreet_s:dailyRSCount:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self->_delegate cc_didUpdate_absoluteLastEventID:absoluteLastEventID dailyProcessCount:dailyProcessCount dailyRSApplication_s:dailyRSTimeApplication_s dailyRSStreet_s:dailyRSTimeStreetFill_s dailyRSCount:dayCountRSTime];
+            });
+        }
+    }
+    
     
     // button state
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB7-C497-4C95-8699-01B142AF0C24"] ||
@@ -642,7 +873,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton3_trigger:YES];
+                    [self->_delegate cc_didUpdateButton3_trigger:YES];
                 });
             }
         }else
@@ -651,7 +882,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton3_trigger:NO];
+                    [self->_delegate cc_didUpdateButton3_trigger:NO];
                 });
             }
         }
@@ -662,7 +893,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton1_trigger:YES];
+                    [self->_delegate cc_didUpdateButton1_trigger:YES];
                 });
             }
         }else
@@ -671,7 +902,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton1_trigger:NO];
+                    [self->_delegate cc_didUpdateButton1_trigger:NO];
                 });
             }
         }
@@ -682,7 +913,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton2_trigger:YES];
+                    [self->_delegate cc_didUpdateButton2_trigger:YES];
                 });
             }
         }else
@@ -691,7 +922,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                 {
-                    [_delegate cc_didUpdateButton2_trigger:NO];
+                    [self->_delegate cc_didUpdateButton2_trigger:NO];
                 });
             }
         }
@@ -702,7 +933,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                                {
-                                   [_delegate cc_didUpdateButton4_trigger:YES];
+                                   [self->_delegate cc_didUpdateButton4_trigger:YES];
                                });
             }
         }else
@@ -711,7 +942,7 @@
             {
                 dispatch_async(dispatch_get_main_queue(), ^
                                {
-                                   [_delegate cc_didUpdateButton4_trigger:NO];
+                                   [self->_delegate cc_didUpdateButton4_trigger:NO];
                                });
             }
         }
@@ -722,21 +953,23 @@
     // Event Totals
     if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC3-C497-4C95-8699-01B142AF0C24"] ||
         [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC3-C497-4C95-8699-01B142AF0C24"]) {
-        uint16_t xEventCount, yEventCount, zEventCount, xActiveTime, yActiveTime, zActiveTime, xProcessCount, yProcessCount, zProcessCount;
+        uint16_t yEventCount, zEventCount, yProcessCount, zProcessCount;
+        uint32_t yActiveTime, zActiveTime;
         
-        xEventCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
+        //xEventCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes]; - removed for Peter Leicht on Sept 7th 2019 according to his documentation of the bt5 firmware
+        
         yEventCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 2)]bytes];
         zEventCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(4, 2)]bytes];
-        xActiveTime = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(6, 2)]bytes];
-        yActiveTime = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(8, 2)]bytes];
-        zActiveTime = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(10, 2)]bytes];
-        xProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(12, 2)]bytes];
+        
+        yActiveTime = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(6, 4)]bytes];
+        zActiveTime = *(uint32_t*)[[characteristic.value subdataWithRange:NSMakeRange(10, 4)]bytes];
+        
         yProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(14, 2)]bytes];
         zProcessCount = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
         
-        if ([_delegate respondsToSelector:@selector(cc_didUpdateTotalsForXEventCount:yEventCount:zEventCount:xActiveTime:yActiveTime:yActiveTime:xProcessCount:yProcessCount:zProcessCount:)]) {
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateTotalsForEventCount:zEventCount:yActiveTime:zActiveTime:yProcessCount:zProcessCount:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateTotalsForXEventCount:xEventCount yEventCount:yEventCount zEventCount:zEventCount xActiveTime:xActiveTime yActiveTime:yActiveTime yActiveTime:zActiveTime xProcessCount:xProcessCount yProcessCount:yProcessCount zProcessCount:zProcessCount];
+                [self->_delegate cc_didUpdateTotalsForEventCount:yEventCount zEventCount:zEventCount yActiveTime:yActiveTime zActiveTime:zActiveTime  yProcessCount:yProcessCount zProcessCount:zProcessCount];
             });
         }
     }
@@ -751,13 +984,12 @@
         uint8_t currentUserRole;
         int8_t chipTemperature;
         
-        
         // device type
         NSData* devType_data = [characteristic.value subdataWithRange:NSMakeRange(0, 2)];
         deviceType = *(uint16_t*)[devType_data bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceType:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateDeviceType:deviceType];
+                [self->_delegate cc_didUpdateDeviceType:deviceType];
             });
         }
         
@@ -766,7 +998,7 @@
         deviceRevision = *(uint16_t*)[devRevision_data bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceRevision:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateDeviceRevision:deviceRevision];
+                [self->_delegate cc_didUpdateDeviceRevision:deviceRevision];
             });
         }
         
@@ -775,7 +1007,7 @@
         buildNumber = *(uint16_t*)[buildNumber_data bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateFirmwareBuildNr:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateFirmwareBuildNr:buildNumber];
+                [self->_delegate cc_didUpdateFirmwareBuildNr:buildNumber];
             });
         }
         
@@ -784,7 +1016,7 @@
         firmwareMinor = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(7, 1)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateFirmwareMajor:andMinor:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateFirmwareMajor:firmwareMajor andMinor:firmwareMinor];
+                [self->_delegate cc_didUpdateFirmwareMajor:firmwareMajor andMinor:firmwareMinor];
             });
         }
         
@@ -795,13 +1027,16 @@
         chipTemperature = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(19, 1)]bytes];
         
         // check if the user role equals our role or set if not
-        if (currentUserRole != _peripheralRole) {
-            [self setUserRole:_peripheralRole withPin:_peripheralPin];
-        }
+//        if (currentUserRole != _peripheralRole) {
+//            [self setUserRole:_peripheralRole withPin:_peripheralPin];
+//            NSLog(@"Johannes attempts to switch role from delegate object! EPIC FAIL");
+//        }
+        
+        
         
         if ([_delegate respondsToSelector:@selector(cc_didUpdateUserRole:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateUserRole:currentUserRole];
+                [self->_delegate cc_didUpdateUserRole:currentUserRole];
             });
         }
 
@@ -810,7 +1045,7 @@
         statusBits = *(uint32_t*)[statusBits_data bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateStatusFlags:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateStatusFlags:statusBits];
+                [self->_delegate cc_didUpdateStatusFlags:statusBits];
             });
         }
         
@@ -819,12 +1054,20 @@
         rs_count = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
         if ([_delegate respondsToSelector:@selector(cc_didUpdateRSTime:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateRSTime:rs_time];
+                [self->_delegate cc_didUpdateRSTime:rs_time];
             });
         }
+        // Mode dependent Status
+        uint8_t modeDepState = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(19, 1)]bytes];
+        if ([_delegate respondsToSelector:@selector(cc_didUpdateModeDependendState:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self->_delegate cc_didUpdateModeDependendState:modeDepState];
+            });
+        }
+        
         if ([_delegate respondsToSelector:@selector(cc_didUpdateRSCount:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateRSCount:rs_count];
+                [self->_delegate cc_didUpdateRSCount:rs_count];
             });
         }
         if (self.isLoggingEnabled) {
@@ -833,7 +1076,7 @@
         
         if ([_delegate respondsToSelector:@selector(cc_didUpdateDeviceStateWith_DeviceType:deviceRevision:buildNumber:firmwareMajor:firmwareMinor:statusBits:rs_time:rs_count:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_delegate cc_didUpdateDeviceStateWith_DeviceType:deviceType deviceRevision:deviceRevision buildNumber:buildNumber firmwareMajor:firmwareMajor firmwareMinor:firmwareMinor statusBits:statusBits rs_time:rs_time rs_count:rs_count];
+                [self->_delegate cc_didUpdateDeviceStateWith_DeviceType:deviceType deviceRevision:deviceRevision buildNumber:buildNumber firmwareMajor:firmwareMajor firmwareMinor:firmwareMinor statusBits:statusBits rs_time:rs_time rs_count:rs_count];
             });
         }
         
@@ -890,11 +1133,10 @@
         }
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            if ([_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ: frequencyFFT_z:)]) {
-                [_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity frequencyFFT_z:zFrequency];
+            if ([self->_delegate respondsToSelector:@selector(cc_didUpdateInclincationForX:andY:andZ:rawX:rawY:rawZ:gravityX:gravityY:gravityZ: frequencyFFT_z:)]) {
+                [self->_delegate cc_didUpdateInclincationForX:(float)x_corrected andY:(float)y_corrected andZ:(float)z_corrected rawX:(float)x rawY:(float)y rawZ:(float)z gravityX:(int8_t)xGravity gravityY:(int8_t)yGravity gravityZ:(int8_t)zGravity frequencyFFT_z:zFrequency];
             }
         });
-        
     }
     
     if ([characteristic.UUID.UUIDString isEqualToString:@"C83ACCC1-C497-4C95-8699-01B142AF0C24"]) {
@@ -914,9 +1156,9 @@
         uint8_t reed4_mode = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange( 19, 1)] bytes];
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            if ([_delegate respondsToSelector:@selector(cc_didUpdateSensorPlusValuesWith_reed1_count:reed2_count:reed3_count:reed4_count:reed1_time:reed2_time:reed3_time:reed4_time:reed1_mode:reed2_mode:reed3_mode:reed4_mode:)]) {
+            if ([self->_delegate respondsToSelector:@selector(cc_didUpdateSensorPlusValuesWith_reed1_count:reed2_count:reed3_count:reed4_count:reed1_time:reed2_time:reed3_time:reed4_time:reed1_mode:reed2_mode:reed3_mode:reed4_mode:)]) {
                 
-                [_delegate cc_didUpdateSensorPlusValuesWith_reed1_count:reed1_count
+                [self->_delegate cc_didUpdateSensorPlusValuesWith_reed1_count:reed1_count
                                                             reed2_count:reed2_count
                                                             reed3_count:reed3_count
                                                             reed4_count:reed4_count
@@ -944,6 +1186,22 @@
 #pragma mark - Device configuration and manipulation Methods
 
 // Device configuration and manipulation methods
+
+// Memory Info
+
+-(void)readEEPMemoryInfo {
+    unsigned char senddata[20] = {0x00};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_ABSOLUTE_EVENT_ID;
+    
+    // retrieve char
+    CBCharacteristic* cmdChar = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (cmdChar != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:cmdChar type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
 // Low Pass filter
 - (void)setLowPassFilterTime_X_s:(uint8_t)newFilterTime_s
 {
@@ -1074,6 +1332,27 @@
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
 }
+
+
+- (void)set_resetFactoryDefaultsWithoutCalibration:(uint16_t)securityCode;
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_RESET_FACTORY_DEFAULT_WO_CALIB;
+    
+    uint16toByte tmpSecurityCode;
+    tmpSecurityCode.ui = securityCode;
+    senddata[2] = tmpSecurityCode.bytes[0];
+    senddata[3] = tmpSecurityCode.bytes[1];
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
 - (void)reset_X_calibration
 {
     uint8_t senddata[20] = {0x00};
@@ -1382,6 +1661,7 @@
     senddata[0] = WRITE;
     senddata[1] = CMD_READ_RADIO_POWER;
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+
     if (configuration_char != nil) {
         [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
@@ -1389,10 +1669,31 @@
 
 
 
+- (void)read_pitchMeteringState
+{
+    unsigned char senddata[20] = {0};
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_PITCH_METERING_ACTIVE;
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+    
+}
+
+- (void)set_LED_Blink:(boolean_t)newState
+{
+    
+}
+
+
 // User Role
 
 - (void)setUserRole:(en_User_Role)role withPin:(uint16_t)pin
 {
+    NSLog(@"Counter Controller attempt to switch role: %d with pin %d", role, pin);
+    
     uint8_t senddata[20] = {0x00};
     
     senddata[0] = WRITE;
@@ -1413,6 +1714,8 @@
 }
 
 - (void)setNewPin:(uint16_t)pin forUserRole:(en_User_Role)role{
+    NSLog(@"PIN: Set new pin for User: %d and pin: %d", role, pin);
+    
     uint8_t senddata[20] = {0x00};
     
     senddata[0] = WRITE;
@@ -1895,6 +2198,21 @@
     }
 }
 
+- (void)setTimeDisplayMode:(uint8_t)newMode
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_TIME_DISPLAY_MODE;
+    senddata[2] = newMode;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
 - (void)basic_info_setNewLocalName:(NSString*_Nonnull)name
 {
     uint8_t senddata[20] = {0x00};
@@ -2055,11 +2373,19 @@
 
 }
 
-- (void)eeprom_startTransfer{
+- (void)eeprom_startTransferBeginningWithEEP_ID:(uint32_t)req_start_id{
     uint8_t senddata[20] = {0x00};
     
     senddata[0] = WRITE;
-    senddata[1] = CMD_EEPROM_TRANSPORT;
+    senddata[1] = 0x1a;//CMD_EEPROM_TRANSPORT;
+    
+    uint32ToByte startAddress;
+    startAddress.ui32 = req_start_id;
+    NSLog(@"%@", [NSString stringWithFormat:@"Markus - Requesting Transfer beginning with %d", req_start_id]);
+    senddata[2] = startAddress.bytes[0];
+    senddata[3] = startAddress.bytes[1];
+    senddata[4] = startAddress.bytes[2];
+    senddata[5] = startAddress.bytes[3];
     
     isEEPTransferInitiated = true;
     
@@ -2090,12 +2416,9 @@
     
     senddata[0] = WRITE;
     senddata[1] = CMD_READ_AXIS_CONFIG;
-    
     if (axis <= 4) {
         senddata[2] = axis;
     }
-    
-    
     // retrieve char
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
     if (configuration_char != nil) {
@@ -2103,17 +2426,118 @@
     }
 }
 
-- (void)set_LED_Blink:(boolean_t)newState{
+- (void)read_minutesToSleep
+{
     uint8_t senddata[20] = {0x00};
     
     senddata[0] = WRITE;
-    senddata[1] = CMD_SET_LED_BLINK;
+    senddata[1] = CMD_READ_MINUTES_TO_SLEEP;
     
-    if (newState == true) {
-        senddata[0] = 0x01;
-    }else{
-        senddata[0] = 0x00;
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
     }
+}
+
+
+
+- (void)read_hoursToSleep
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_HOURS_TO_SLEEP;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+
+- (void)read_applicationPurpose
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_APPLICATION_PURPOSE;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)read_minAxisRotationLoat
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_MIN_AXIS_ROTATION_LOAD;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+
+- (void)read_averageAxisRotationLoad
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_AVG_AXIS_ROTATION_LOAD;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)read_mode4BorderInclination
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_READ_MODE4_BORDER_INCL;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)reset_sleepCounter
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_RESET_SLEEP_COUNTER;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_sleepCounterOnOrOff:(boolean_t)counterOn
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_RESET_SLEEP_COUNTER;
+    
+    senddata[2] = counterOn;
     
     // retrieve char
     CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
@@ -2123,6 +2547,406 @@
     
 }
 
+- (void)set_sleepCounter_Hours:(uint16_t)hours
+{
+    uint8_t senddata[20] = {0x00};
+    uint16toByte val = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_SLEEP_TIMEOUT_HOURS;
+    
+    val.ui = hours;
+    memcpy(&senddata[2], val.bytes, 2);
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+
+- (void)set_sleepCounter_Minutes:(uint16_t)minutes
+{
+    uint8_t senddata[20] = {0x00};
+    uint16toByte val = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_SLEEP_TIMEOUT_HOURS;
+    
+    val.ui = minutes;
+    memcpy(&senddata[2], val.bytes, 2);
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_LIS_WakeUp_value: (uint8_t)value
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_LIS_WAKEUP_VALUE;
+    
+    senddata[2] = value;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+    
+}
+
+- (void)set_LIS_Movement_value: (uint8_t)value
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_LIS_MOVEMENT_BORDER_VALUE;
+    
+    senddata[2] = value;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_automaticDailyCountOnOrOff:(boolean_t)onOrOff
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_AUTO_DAILY_COUNTER_ON_OFF;
+    
+    senddata[2] = onOrOff;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_pitchMetering_OnOrOff:(boolean_t)onOrOff
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_PITCH_METERING_ON_OFF;
+    
+    senddata[2] = onOrOff;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)reset_manual_dailyCounters
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_RESET_MANUAL_DAILY_COUNT;
+        
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_applicationPurpose:(uint8_t)appPurpose
+{
+    
+    /*
+     1: Fass  (-> Einstellung RS-Schwelle auf 30, nur hier wird Steigungsmessung wird aktiviert)
+     2: Abschieber (-> Einstellung RS-Schwelle auf 15)
+     3: Kehrbesen (noch ausgegraut/inaktiv)
+     4: Schwader über Winkel (Klapp-Schwader)
+     5. Schwader über Rotation (ohne Klapp-Winkel, Montage am Kreisel)
+
+     */
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_SET_APPLICATION_PURPOSE;
+    senddata[2] = appPurpose;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_minAxisRotationLoad:(uint8_t)minLoad
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_MIN_AXIS_ROTATION_LOAD;
+    senddata[2] = minLoad;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)start_autoCalibrationOfRotationMetering
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_TOGGLE_AUTOCALIB_ROTATION_METER;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_averageAxisRotationLoad:(uint8_t)avgLoad
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_AVG_AXIS_ROTATION_LOAD;
+    senddata[2] = avgLoad;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+- (void)set_mode4BorderInclination:(uint8_t)inclination_border
+{
+    uint8_t senddata[20] = {0x00};
+    
+    senddata[0] = WRITE;
+    senddata[1] = CMD_SET_MODE4_BORDER_INCL;
+    senddata[2] = inclination_border;
+    
+    // retrieve char
+    CBCharacteristic* configuration_char = [_foundCharacteristics objectForKey:@"BBD3"];
+    if (configuration_char != nil) {
+        [selected_peripheral writeValue:[NSData dataWithBytes:senddata length:20] forCharacteristic:configuration_char type:CBCharacteristicWriteWithResponse];
+    }
+}
+
+
+
+
+ /**
+  // EEPROM Transport characteristic
+  if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBC8-C497-4C95-8699-01B142AF0C24"] ||
+  [characteristic.UUID.UUIDString isEqualToString:@"C83ABBC8-C497-4C95-8699-01B142AF0C24"])
+  {
+  if (isEEPTransferInitiated) {
+  
+  uint16_t slot = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
+  NSData* data = [characteristic.value subdataWithRange:NSMakeRange(2, 18)];
+  NSLog(@"Transfer %d: %@",slot, [data description]);
+  
+  memcpy(myEeprom.messages[slot].eepTransportMsg.payload, [data bytes], 18);
+  myEeprom.messages[slot].eepTransportMsg.packetNum = slot;
+  float perc = (slot/((packetToLoad*14)/100.0f));
+  //NSLog(@"%@", [NSString stringWithFormat:@"Received EEP: %.2f (Slot: %d | 1%% = %.2f)", perc, slot, (float)(7281.0f/100.0f)]);
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferPercentage:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  
+  [_delegate cc_didUpdateEepromTransferPercentage:perc];
+  });
+  }
+  
+  if (slot == (packetToLoad*14)) {
+  // We received the last slot. --> parse the memory now and handle the rest
+  isEEPTransferInitiated = false;
+  NSMutableData* eepData = [[NSMutableData alloc]init];
+  // collect the whole data
+  
+  
+  for (uint16_t i = 0; i<(packetToLoad*14); i++) {
+  
+  if (i == (packetToLoad*14)) {
+  [eepData appendData:[NSData dataWithBytes:myEeprom.messages[i].eepTransportMsg.payload length:15]];
+  }else{
+  [eepData appendData:[NSData dataWithBytes:myEeprom.messages[i].eepTransportMsg.payload length:18]];
+  }
+  }
+  
+  
+  // we now have the pure eeprom bytes.
+  for (uint16_t i = 0; i< floor(packetToLoad*18/51); i++)
+  {
+  NSData* eventData = [eepData subdataWithRange:NSMakeRange((i*EEP_EVENT_SIZE), EEP_EVENT_SIZE)];
+  
+  eep_Events[i].eep_event.eepID = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(0, 2)]bytes];
+  
+  eep_Events[i].eep_event.mode = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(2, 1)]bytes];
+  
+  eep_Events[i].eep_event.flavor = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(3, 1)]bytes];
+  
+  eep_Events[i].eep_event.axis = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(4, 1)]bytes];
+  
+  eep_Events[i].eep_event.rs_state = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange(5, 1)]bytes];
+  
+  eep_Events[i].eep_event.event_date = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(6, 4)]bytes];
+  
+  eep_Events[i].eep_event.event_count = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(10, 2)]bytes];
+  
+  eep_Events[i].eep_event.event_pCount = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(12, 2)]bytes];
+  
+  eep_Events[i].eep_event.event_duration = *(uint32_t*)[[eventData subdataWithRange:NSMakeRange(14, 4)]bytes];
+  
+  eep_Events[i].eep_event.latitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(18, 4)]bytes];
+  
+  eep_Events[i].eep_event.longitude = *(Float32*)[[eventData subdataWithRange:NSMakeRange(22, 4)]bytes];
+  
+  for (uint8_t un = 0; un < 24; un++) {
+  eep_Events[i].eep_event.unused[un] = *(uint8_t*)[[eventData subdataWithRange:NSMakeRange((26+un), 1)]bytes];
+  }
+  
+  NSData* propData = [eventData subdataWithRange:NSMakeRange(26, 24)];
+  
+  eep_Events[i].eep_event.crc8 = *(uint16_t*)[[eventData subdataWithRange:NSMakeRange(50, 1)]bytes];
+  
+  uint8_t checkCRC8 = 0;
+  for (uint8_t j = 0; j< (EEP_EVENT_SIZE-1); j++) {
+  checkCRC8 += eep_Events[i].bytes[j];
+  }
+  
+  if (checkCRC8 == eep_Events[i].eep_event.crc8) {
+  NSLog(@"WE HAVE A WINNER: %d", eep_Events[i].eep_event.eepID);
+  NSLog(@"Parsed Location lat: %f lon: %f", eep_Events[i].eep_event.latitude, eep_Events[i].eep_event.longitude);
+  // Create an object
+  HDBEvent* event = [[HDBEvent alloc]init];
+  event.eepID = eep_Events[i].eep_event.eepID;
+  event.mode = eep_Events[i].eep_event.mode;
+  event.flavor = eep_Events[i].eep_event.flavor;
+  event.axis = eep_Events[i].eep_event.axis;
+  event.rsState = eep_Events[i].eep_event.rs_state;
+  event.eventDate = eep_Events[i].eep_event.event_date;
+  event.eventCount = eep_Events[i].eep_event.event_count;
+  event.eventProcessCount = eep_Events[i].eep_event.event_pCount;
+  event.eventDuration = eep_Events[i].eep_event.event_duration;
+  event.latitude = eep_Events[i].eep_event.latitude;
+  event.longitude = eep_Events[i].eep_event.longitude;
+  event.crc8 = eep_Events[i].eep_event.crc8;
+  event.proprietaryData = propData;
+  // add object to dictionary if it does not exist...
+  [eventDictionary setObject:event forKey:[NSNumber numberWithInt:event.eepID]];
+  
+  }else{
+  }
+  }//end for loop generating objects
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateEepromTransferedEvents:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateEepromTransferedEvents:eventDictionary];
+  });
+  }
+  }
+  }
+  }
+  
+  
+  
+  // Beacon Basic Info
+  if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB1-C497-4C95-8699-01B142AF0C24"] ||
+  [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB1-C497-4C95-8699-01B142AF0C24"]) {
+  NSLog(@"RECEIVED BEACON info (Basic info)");
+  uint16_t minor, major;
+  NSString* localName;
+  int8_t txPower;
+  int16_t lisTemperature;
+  
+  minor = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 2)]bytes];
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateMinor:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateMinor:minor];
+  });
+  }
+  major = *(uint16_t*)[[characteristic.value subdataWithRange:NSMakeRange(2, 2)]bytes];
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateMajor:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateMajor:major];
+  });
+  }
+  if (characteristic.value.length == 18) {
+  lisTemperature = *(int16_t*)[[characteristic.value subdataWithRange:NSMakeRange(16, 2)]bytes];
+  NSLog(@"%@", [NSString stringWithFormat:@"LIS Temperature: %d", lisTemperature]);
+  
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateLISTemperature:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateLISTemperature:lisTemperature];
+  });
+  }
+  }
+  
+  
+  txPower = *(int8_t*)[[characteristic.value subdataWithRange:NSMakeRange(15, 1)]bytes];
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateTXPower:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateTXPower:txPower];
+  });
+  }
+  
+  NSData* localNameData = [characteristic.value subdataWithRange:NSMakeRange(4, 11)];
+  localName = [[NSString alloc]initWithData:localNameData encoding:NSUTF8StringEncoding];
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateLocalName:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateLocalName:localName];
+  });
+  }
+  }
+  
+  // UUID
+  if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBB3-C497-4C95-8699-01B142AF0C24"] ||
+  [characteristic.UUID.UUIDString isEqualToString:@"C83ABBB3-C497-4C95-8699-01B142AF0C24"]) {
+  
+  NSData* uuidData = [characteristic.value subdataWithRange:NSMakeRange(0, 16)];
+  NSString* uuidString;
+  
+  CBUUID* uuid = [CBUUID UUIDWithData:uuidData];
+  if (uuid!= nil) {
+  uuidString = uuid.UUIDString;
+  }else{
+  uuidString = @"Received illegal UUID value";
+  }
+  
+  if ([_delegate respondsToSelector:@selector(cc_didUpdateUUID:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didUpdateUUID:uuidString];
+  });
+  }
+  }
+  
+  // Written banks
+  if ([characteristic.UUID.UUIDString isEqualToString:@"C93ABBCA-C497-4C95-8699-01B142AF0C24"] ||
+  [characteristic.UUID.UUIDString isEqualToString:@"C83ABBCA-C497-4C95-8699-01B142AF0C24"]) {
+  
+  packetToLoad = *(uint8_t*)[[characteristic.value subdataWithRange:NSMakeRange(0, 1)]bytes];
+  
+  if ([_delegate respondsToSelector:@selector(cc_didReadWrittenBanks:)]) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+  [_delegate cc_didReadWrittenBanks:packetToLoad];
+  });
+  }
+  }
+  **/
 
 
 
